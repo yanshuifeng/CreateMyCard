@@ -103,7 +103,13 @@ WS /api/v1/ws/tools/generateWidgetCard
 WS /api/v1/ws/tools/generateWidgetCardCompactDsl
 WS /api/v1/ws/tools/generateWidgetCardCompactDslWithDirective
 WS /api/v1/ws/tools/generateWidgetCardTerseDslNested2
+GET|HEAD /artifacts/{file_name}
 ```
+
+`/artifacts/{file_name}` 仅用于自托管部署下载本服务生成的 `artifact_<uuid>.md`。路由只读取
+`WORKSPACE_ROOT/mock_obs` 下符合固定文件名格式的产物，拒绝任意文件名和目录跳转；响应禁止缓存并以附件形式
+返回。部署时应持久化该目录，并把 `WIDGET_SERVICE_ARTIFACT_BASE_URL` 配置为外部可访问的 `/artifacts`
+地址前缀。
 
 `generateWidgetCardCompactDslWithDirective` 是临时路由别名，请求和响应 schema 与第四接口一致，内部直接
 调用同一个 `generate_widget_card_compact_dsl()` Service 方法。该 operation 在路由层强制发送
@@ -1267,6 +1273,9 @@ WIDGET_SERVICE_DEEPSEEK_PLATFORM_MESSAGE_NAME
 WIDGET_SERVICE_DEEPSEEK_PLATFORM_DEFAULT_COUNTRY_CODE
 WIDGET_SERVICE_DEEPSEEK_PLATFORM_DEFAULT_APP_NAME
 WIDGET_SERVICE_DEEPSEEK_API_KEY
+WIDGET_SERVICE_DEEPSEEK_API_URL
+WIDGET_SERVICE_DEEPSEEK_HTTP_MODEL
+WIDGET_SERVICE_DEEPSEEK_HTTP_MAX_TOKENS
 WIDGET_SERVICE_DEEPSEEK_MODEL
 WIDGET_SERVICE_DEEPSEEK_WS_URL
 WIDGET_SERVICE_DEEPSEEK_USER
@@ -1333,22 +1342,25 @@ N 个字符、system prompt 总字符数和消息数量，不记录完整 system
 提示词正文。repair 请求继续保持完整载荷不落日志。
 
 `WIDGET_SERVICE_MODEL_MAX_CONCURRENCY` 默认 `20`，由应用生命周期唯一模型 Runtime 的共享 Semaphore
-执行。MEP、DeepSeek Platform、llmclient、三个生成接口、create/edit、模型失败重试和 repair 的每一次
+执行。MEP、DeepSeek HTTP、DeepSeek Platform、llmclient、三个生成接口、create/edit、模型失败重试和 repair 的每一次
 真实模型调用都要单独获取令牌；mock 不占令牌。排队和执行分别由
 `WIDGET_SERVICE_MODEL_QUEUE_TIMEOUT_SECONDS` 与 `WIDGET_SERVICE_MODEL_REQUEST_TIMEOUT_SECONDS` 控制，
 默认均为 120 秒。llmclient 超时后令牌保留到同步后台调用真正结束，避免物理并发超限。
 
 `WIDGET_SERVICE_OPENAI_MASTER_CLIENT` 和 `WIDGET_SERVICE_OPENAI_FALLBACK_CLIENT` 只允许配置
-`deepseek_platform` 或 `llmclient`，并且不能相同。DeepSeek Platform 的 SK 只从
+`deepseek_http`、`deepseek_platform` 或 `llmclient`，并且不能相同。`deepseek_http` 使用 OpenAI-compatible
+HTTPS `/chat/completions`，由 `WIDGET_SERVICE_DEEPSEEK_API_URL`、`WIDGET_SERVICE_DEEPSEEK_API_KEY`、
+`WIDGET_SERVICE_DEEPSEEK_HTTP_MODEL` 和 `WIDGET_SERVICE_DEEPSEEK_HTTP_MAX_TOKENS` 配置，默认关闭 thinking。
+DeepSeek Platform 的 SK 只从
 `WIDGET_SERVICE_DEEPSEEK_PLATFORM_SECRET_KEY_STS_CONFIG_KEY` 指定的 STS key 读取，默认 key 为
 `genui.deepseek.platform.secret.key`；普通配置和日志中不保存 SK。AK、WebSocket URL、模型名、业务 API
 Key、sender、receiver、messageName、默认国家和默认 App 使用 `WIDGET_SERVICE_DEEPSEEK_PLATFORM_*`
 配置。会话、交互、设备、国家、App 版本和 App 名称由每次 WebSocket 请求构造，同一请求的首次生成、
 重试和 repair 复用，后续请求不会串用。
 
-`WIDGET_SERVICE_DEEPSEEK_*` 仍只用于 fallback llmclient：配置 WebSocket 地址、鉴权和请求身份、模型采样参数、最大
-Token、思考/usage 开关及连接接收超时。默认值与配置抽离前 llmclient 的固定参数一致；生产环境应通过
-部署环境变量覆盖鉴权、地址和请求身份。
+`WIDGET_SERVICE_DEEPSEEK_API_KEY`、温度、top-p 和 thinking 开关由 DeepSeek HTTP 与 llmclient 共用；
+`WIDGET_SERVICE_DEEPSEEK_WS_URL`、`MODEL`、`USER`、`REQUEST_ID`、top-k、llmclient 最大 Token、usage 开关及
+接收超时仍只用于 llmclient。生产环境应通过部署环境变量覆盖鉴权、地址和请求身份。
 
 常用属性：
 

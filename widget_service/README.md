@@ -49,6 +49,11 @@ The service follows `docs/AGENTS.md`:
   `cloud/custom/llmclient.py` as fallback by default. Configure them with `WIDGET_SERVICE_OPENAI_MASTER_CLIENT` and
   `WIDGET_SERVICE_OPENAI_FALLBACK_CLIENT`, and control fallback with `WIDGET_SERVICE_ENABLE_OPENAI_FALLBACK`; tool
   callers cannot select a backend or physical client directly.
+- `deepseek_http` is an additional server-side master/fallback choice for the OpenAI-compatible HTTPS endpoint. It
+  uses `WIDGET_SERVICE_DEEPSEEK_API_KEY`, `WIDGET_SERVICE_DEEPSEEK_API_URL`,
+  `WIDGET_SERVICE_DEEPSEEK_HTTP_MODEL`, and `WIDGET_SERVICE_DEEPSEEK_HTTP_MAX_TOKENS`; sampling and the default-disabled
+  thinking switch reuse the existing `WIDGET_SERVICE_DEEPSEEK_TEMPERATURE`, `WIDGET_SERVICE_DEEPSEEK_TOP_P`, and
+  `WIDGET_SERVICE_DEEPSEEK_ENABLE_THINKING` settings. Credentials and full prompts are not logged.
 - DeepSeek Platform reads its SK only from the STS key configured by
   `WIDGET_SERVICE_DEEPSEEK_PLATFORM_SECRET_KEY_STS_CONFIG_KEY`, whose default is
   `genui.deepseek.platform.secret.key`. Its remaining static request fields use the
@@ -74,7 +79,7 @@ The service follows `docs/AGENTS.md`:
   Repair appends the same repair constraints when enabled. Prompt logs never write the full messages;
   `WIDGET_SERVICE_MODEL_PROMPT_LOG_PREVIEW_CHARS=30` limits the logged system-prompt prefix, and `0` disables prompt
   text while retaining message and character counts.
-- `WIDGET_SERVICE_ENABLE_ARTIFACT_DOWNLOAD_MOCK=true` by default. Multi-round source artifacts are read only from `cloud/workspace/mock_obs`; missing mock files do not fall back to the network. Set it to `false` to download from the validated HTTPS artifact URL.
+- `WIDGET_SERVICE_ENABLE_ARTIFACT_DOWNLOAD_MOCK=true` by default. Multi-round source artifacts are read only from `cloud/workspace/mock_obs`; missing mock files do not fall back to the network. For a self-hosted deployment, persist that workspace and set `WIDGET_SERVICE_ARTIFACT_BASE_URL` to the public `/artifacts` endpoint (for example, `http://server:2832/artifacts`). Set mock download to `false` only when source artifacts should be fetched from a separately hosted validated HTTPS URL.
 - The WebSocket router logs each received request object as compact standard JSON before protocol normalization. Structured values embedded in other log messages use the same double-quoted JSON format. Sensitive `uid`/`userId`/`callingUid` and `odid` are recursively omitted; `sourceArtifactUrl` is retained in the raw request log.
 - The server logs process-wide WebSocket `active_connections`, cumulative `total_connections`, and `running_tasks` every 10 seconds.
 - Starlette synchronous handlers use the AnyIO worker pool with 80 concurrent tokens by default.

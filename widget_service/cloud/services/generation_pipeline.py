@@ -14,7 +14,10 @@ from services.compact_dsl_a2ui_converter import (
 from services.protocol_registry import A2UIProtocolRegistry
 from services.terse_dsl_nested2_converter import (
     TerseDslNested2ConversionError,
+    bind_task_spec_values,
     convert_terse_dsl_nested2_to_a2ui,
+    parse_terse_dsl_nested2,
+    serialize_terse_dsl_nested2,
 )
 
 IssueStage = Literal["conversion", "validation"]
@@ -170,8 +173,11 @@ class TerseNested2Processor:
         context: DslProcessingContext,
     ) -> DslProcessingResult:
         try:
+            root = parse_terse_dsl_nested2(source_dsl)
+            bound_root = bind_task_spec_values(root, context.task_spec)
+            bound_source_dsl = serialize_terse_dsl_nested2(bound_root)
             standard_dsl = convert_terse_dsl_nested2_to_a2ui(
-                source_dsl,
+                bound_source_dsl,
                 size=context.size,
                 protocol_profile=context.protocol_profile,
                 task_spec=context.task_spec,

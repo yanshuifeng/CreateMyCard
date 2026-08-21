@@ -94,6 +94,7 @@ from services.capability_registry import CapabilityRegistry
 from services.device_capability_resolver import DeviceCapabilityResolver
 from services.edit_request_normalizer import EditRequestNormalizer
 from services.generation_pipeline import (
+    DslProcessingContext,
     DslProcessingResult,
     DslProcessorKind,
     GenerationRoutePolicy,
@@ -154,6 +155,65 @@ Column("card",
     ]
     assert components[0]["styles"]["width"] == "matchParent"
     assert components[4]["styles"]["fontColor"] == "#FF64BB5C"
+
+
+def test_terse_nested2_processor_binds_task_spec_sample_values_before_conversion():
+    source = """
+Column("card",
+  Progress({value: 68, total: 100}),
+  Text("68%", "title"),
+  Text("正常电量", "body"),
+  Text("未充电", "subtitle"),
+  Text("29.0 ℃", "body")
+);
+"""
+    task_spec = {
+        "dataModelSchema": {
+            "data": {
+                "phoneBattery": {
+                    "batterySOC": {"type": "integer", "sampleValue": 68},
+                    "batterySOCText": {"type": "string", "sampleValue": "68%"},
+                    "batteryCapacityLevelDesc": {
+                        "type": "string",
+                        "sampleValue": "正常电量",
+                    },
+                    "chargingStatusDesc": {
+                        "type": "string",
+                        "sampleValue": "未充电",
+                    },
+                    "batteryTemperatureText": {
+                        "type": "string",
+                        "sampleValue": "29.0 ℃",
+                    },
+                }
+            }
+        }
+    }
+    profile = A2UIProtocolRegistry("a2ui-form-rom6.0-v1").get_profile()
+    context = DslProcessingContext(
+        size="2x2",
+        card_spec={},
+        task_spec=task_spec,
+        protocol_profile=profile,
+    )
+
+    result = get_dsl_processor(DslProcessorKind.TERSE_NESTED2).process(source, context)
+
+    assert result.errors == ()
+    messages = [json_module.loads(line) for line in result.standard_dsl.splitlines()]
+    components = messages[1]["updateComponents"]["components"]
+    components_by_id = {item["id"]: item for item in components}
+    expected_bindings = {
+        "root_0": "{{ ${/data/phoneBattery/batterySOC} }}",
+        "root_1": "{{ ${/data/phoneBattery/batterySOCText} }}",
+        "root_2": "{{ ${/data/phoneBattery/batteryCapacityLevelDesc} }}",
+        "root_3": "{{ ${/data/phoneBattery/chargingStatusDesc} }}",
+        "root_4": "{{ ${/data/phoneBattery/batteryTemperatureText} }}",
+    }
+    assert components_by_id["root_0"]["value"] == expected_bindings["root_0"]
+    assert components_by_id["root_0"]["total"] == 100
+    for component_id in ("root_1", "root_2", "root_3", "root_4"):
+        assert components_by_id[component_id]["content"] == expected_bindings[component_id]
 
 
 @pytest.mark.parametrize(

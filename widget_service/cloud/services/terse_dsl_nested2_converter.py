@@ -7,6 +7,7 @@ from __future__ import annotations
 import ast
 import io
 import json
+import re
 import tokenize
 from dataclasses import dataclass
 from typing import Any
@@ -27,6 +28,7 @@ _FORBIDDEN_KEYS = frozenset({"__proto__", "prototype", "constructor"})
 _CONTAINERS = frozenset({"Row", "Column", "List", "Stack"})
 _LEAVES = frozenset({"Text", "Image", "Divider", "Progress", "Button", "Checkbox"})
 _COMPONENTS = _CONTAINERS | _LEAVES
+_DATA_PLACEHOLDER = re.compile(r"^\$\{(data(?:\.[A-Za-z_][A-Za-z0-9_]*|\.\d+)+)\}$")
 _TEXT_DESIGNS = {
     "title": {"fontSize": 20, "fontWeight": 700, "fontColor": "font_primary"},
     "body": {"fontSize": 14, "fontWeight": 400, "fontColor": "font_primary"},
@@ -87,8 +89,9 @@ def convert_terse_dsl_nested2_to_a2ui(
 ) -> str:
     """Convert one literal-only Nested-2 component tree to three A2UI messages."""
     root = parse_terse_dsl_nested2(source)
+    allowed_binding_paths = _task_spec_leaf_paths(task_spec)
     compact_rows: list[list[Any]] = []
-    _append_compact_rows(root, "root", size, compact_rows)
+    _append_compact_rows(root, "root", size, compact_rows, allowed_binding_paths)
     if task_spec is not None:
         compact_rows.append(["/", _task_spec_sample_data(task_spec)])
     else:
@@ -130,6 +133,20 @@ def parse_terse_dsl_nested2(source: str) -> Nested2Node:
     if not root.values or root.values[0] != "card":
         raise TerseDslNested2ConversionError('The root must use Column("card", ...).')
     return root
+
+
+def serialize_terse_dsl_nested2(root: Nested2Node) -> str:
+    """Serialize a parsed Nested-2 component tree back to canonical DSL."""
+
+    def serialize_node(node: Nested2Node) -> str:
+        arguments = [
+            json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+            for value in node.values
+        ]
+        arguments.extend(serialize_node(child) for child in node.children)
+        return f"{node.component_type}({', '.join(arguments)})"
+
+    return serialize_node(root) + ";"
 
 
 def _python_compatible_source(source: str) -> str:
@@ -260,17 +277,21 @@ def _append_compact_rows(
     component_id: str,
     size: str,
     rows: list[list[Any]],
+    allowed_binding_paths: frozenset[str],
 ) -> None:
     child_ids = [
         f"{component_id}_{index}" for index in range(len(node.children))
     ]
-    props = _component_props(node, component_id, size)
+    props = _convert_data_placeholders(
+        _component_props(node, component_id, size),
+        allowed_binding_paths,
+    )
     row: list[Any] = [component_id, node.component_type, props]
     if node.component_type in _CONTAINERS:
         row.append(child_ids)
     rows.append(row)
     for child, child_id in zip(node.children, child_ids, strict=True):
-        _append_compact_rows(child, child_id, size, rows)
+        _append_compact_rows(child, child_id, size, rows, allowed_binding_paths)
 
 
 def bind_task_spec_values(root: Nested2Node, task_spec: dict[str, Any]) -> Nested2Node:

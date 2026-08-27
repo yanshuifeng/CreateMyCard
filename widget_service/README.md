@@ -89,6 +89,11 @@ The service follows `docs/AGENTS.md`:
 - Package filtering emits exactly one summary result per capability-overview request; per-capability dependency-check logs are not emitted.
 - OBS upload is intentionally left as a TODO hook in `ArtifactStore`; remote source artifact reads reuse `utils/download_file_from_url.py`.
 
+Template Generation 的架构、协议和 Provider 接入说明统一从
+[`cloud/services/template_generation/docs/README.md`](cloud/services/template_generation/docs/README.md) 进入；
+需要复现正式 Provider 场景画廊时，直接阅读
+[`provider-template-e2e-gallery.md`](cloud/services/template_generation/docs/provider-template-e2e-gallery.md)。
+
 ## Run
 
 ```bash

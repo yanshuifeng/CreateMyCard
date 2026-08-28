@@ -858,8 +858,8 @@ def test_non_fusion_device_theme_uses_the_reviewed_resource_palette() -> None:
         ["#1AF9A01E", 0],
         ["#00FFFFFF", 1],
     ]
-    assert theme.action_style.content_color == "#FF0A59F7"
-    assert theme.action_style.background_color == "#1A0A59F7"
+    assert theme.action_style.content_color == "#FF99661F"
+    assert theme.action_style.background_color == "#3399661F"
 
 
 def test_disabled_fusion_feature_removes_themes_from_server_registry_view() -> None:

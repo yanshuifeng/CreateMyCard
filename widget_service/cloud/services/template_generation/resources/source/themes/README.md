@@ -50,4 +50,4 @@ Action 背板。天气非融球主题使用 `#FFE5EDFE` 纯色背景，不配置
 `#FFFFFFFF`。当前 Countdown Provider 没有进度组件。
 设备非融球主题使用 `#FFFFFFFF` 底色及 `#1AF9A01E` 到 `#00FFFFFF` 的线性渐变；主内容为
 `#E6000000`，辅助内容和环内图标为 `#99000000`，环形进度为 `#FFF9A01E`，Action 文本和图标为
-`#FF0A59F7`，Action 背板为 `#1A0A59F7`。
+`#FF99661F`，Action 背板为 `#3399661F`。

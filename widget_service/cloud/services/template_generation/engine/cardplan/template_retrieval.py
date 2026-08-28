@@ -177,12 +177,29 @@ def retrieve_template_variants(
         )
         for component_id, template_ids in sorted(by_component.items())
     )
+    action_ids = query.action_ids
     if task_spec.size == "2x2":
-        candidates, required_groups = _apply_2x2_combination_policy(
-            candidates,
-            query.action_ids,
-            required_groups,
-        )
+        try:
+            candidates, required_groups = _apply_2x2_combination_policy(
+                candidates,
+                action_ids,
+                required_groups,
+            )
+        except TemplateRetrievalMiss:
+            promoted_action_ids = _single_action_for_hero_fallback(
+                action_ids,
+                task_spec,
+                candidates,
+                required_groups,
+            )
+            if not promoted_action_ids:
+                raise
+            candidates, required_groups = _apply_2x2_combination_policy(
+                candidates,
+                promoted_action_ids,
+                required_groups,
+            )
+            action_ids = promoted_action_ids
     else:
         if len(candidates) > 1:
             raise TemplateRetrievalMiss(
@@ -200,7 +217,7 @@ def retrieve_template_variants(
     return TemplateRouteSelection(
         scope=scope,
         componentCandidates=candidates,
-        actionIds=query.action_ids,
+        actionIds=action_ids,
         requiredTemplateGroups=tuple(required_groups),
     )
 
@@ -251,6 +268,25 @@ def _apply_2x2_combination_policy(
     for candidate in filtered_candidates:
         _require_single_template_coverage(candidate, filtered_groups, layout_suffix)
     return filtered_candidates, filtered_groups
+
+
+def _single_action_for_hero_fallback(
+    action_ids: tuple[str, ...],
+    task_spec: TaskSpec,
+    candidates: tuple[TemplateComponentCandidate, ...],
+    required_groups: list[tuple[str, ...]],
+) -> tuple[str, ...]:
+    """Promote one available event when Hero is the only covering 2x2 shape."""
+    if action_ids or len(candidates) != 1:
+        return ()
+    event_ids = tuple(event.id for event in task_spec.eventCandidates if event.id)
+    if len(event_ids) != 1:
+        return ()
+    try:
+        _apply_2x2_combination_policy(candidates, event_ids, list(required_groups))
+    except TemplateRetrievalMiss:
+        return ()
+    return event_ids
 
 
 def _candidate_with_layout_suffix(

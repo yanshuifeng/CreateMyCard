@@ -295,6 +295,70 @@ def test_domain_only_query_returns_candidates_when_required_data_is_available() 
     assert result.required_template_groups
 
 
+def test_single_action_is_promoted_when_only_hero_covers_requested_fields() -> None:
+    task = TaskSpec(
+        userQuery="睡前想把手机充满，明早出门用，帮我做个电池卡片，带充电进度条，看看充上没、电池健康咋样、插的什么充电器。",
+        size="2x2",
+        eventCandidates=[
+            EventAction(
+                id="event.open.settings.battery",
+                call="clickToDeeplink",
+                args={},
+            )
+        ],
+        dataModelSchema={
+            "data": {
+                "phoneBattery": {
+                    "batterySOC": _field(68, "integer"),
+                    "chargingStatusDesc": _field("未充电"),
+                    "healthStatusDesc": _field("正常"),
+                    "pluggedTypeDesc": _field("未连接充电器"),
+                }
+            }
+        },
+    )
+    binding = CandidateDataBinding(
+        capabilityId="GetPhoneBatteryInfo",
+        writeResultTo="/data/phoneBattery",
+        candidateOutputFields=[
+            "/batterySOC",
+            "/chargingStatusDesc",
+            "/healthStatusDesc",
+            "/pluggedTypeDesc",
+        ],
+    )
+    query = TemplateRetrievalQuery(
+        themeId="fusion-battery-teal",
+        requiredOutputFieldsByCapability={
+            "GetPhoneBatteryInfo": (
+                "/batterySOC",
+                "/chargingStatusDesc",
+                "/healthStatusDesc",
+                "/pluggedTypeDesc",
+            )
+        },
+    )
+
+    result = retrieve_template_variants(
+        query,
+        task,
+        CardPlanRegistry(),
+        (binding,),
+        {
+            "suggestSize": "2x2",
+            "dataBindings": [
+                {
+                    "capabilityId": "GetPhoneBatteryInfo",
+                    "writeResultTo": "/data/phoneBattery",
+                }
+            ],
+        },
+    )
+
+    assert result.action_ids == ("event.open.settings.battery",)
+    assert result.allowed_template_ids == ("BatteryOverviewChargingProgressHero@1",)
+
+
 def test_first_layer_prompt_includes_task_fields_rules_and_action_candidates() -> None:
     task = _task().model_copy(
         update={

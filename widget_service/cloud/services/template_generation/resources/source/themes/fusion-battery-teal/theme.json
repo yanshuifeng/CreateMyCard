@@ -1,31 +1,21 @@
 {
   "themeFormat": "card-theme/2",
   "themeProfileId": "fusion-battery-teal",
-  "description": "电量青绿融球",
+  "description": "电量黄色",
   "firstLayerRule": {"path": "first-layer.md"},
   "supportedCapabilityIds": ["GetPhoneBatteryInfo"],
   "paletteSceneIds": ["fusion.battery"],
-  "primaryColor": "#FFCCFFF6",
-  "supportContentColor": "#99CCFFF6",
+  "primaryColor": "#FF99661F",
+  "supportContentColor": "#CC99661F",
+  "progressColor": "#FF99661F",
   "rootStyle": {
-    "backgroundColor": "#FF17734C",
+    "backgroundColor": "#FFFFF3E6",
     "borderRadius": 20,
     "padding": 12,
-    "linearGradient": {
-      "direction": "RightBottom",
-      "colors": [["#FF17734C", 0], ["#FF26BFA6", 1]]
-    },
     "clip": true
   },
   "actionStyle": {
-    "backgroundColor": "#33FFFFFF",
-    "contentColor": "#FFCCFFF6"
-  },
-  "fusionBallStyle": {
-    "scene": "battery",
-    "businessIds": ["BatteryOverview"],
-    "largeColor": "#FF17734C",
-    "mediumColor": "#FF26BFA6",
-    "smallColor": "#FF60BF98"
+    "backgroundColor": "#3399661F",
+    "contentColor": "#FF99661F"
   }
 }

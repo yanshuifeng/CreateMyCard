@@ -131,13 +131,12 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 - 字段必须逐字来自对应 `candidateOutputFields`。
 - CardSpec 写入根必须与 Provider `dataDomain` 一致。
 - 模板的 `primaryData` 和 `secondaryData` 必须都能从 TaskSpec 中取得。
-- Search 只接受一个数据业务，可外加最多两个属于该业务场景的显式 Action。
-- 首层必须完整标定用户显式字段，不得为了迁就单业务限制而省略其他业务；Search 一旦映射出两个或以上
-  业务组件，立即在二层模型调用前返回模板不适用。
-- Search 不按 Action 数量或布局后缀筛选候选；每个保留的 Template 必须独立完整覆盖所属业务的
-  用户显式字段。
-- `2x2`/`2x4` 的 `Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 后缀筛选由第二层完成。
-- `TwoCompactLayout` 作为兼容资源保留，当前默认 Search 路线不会为多业务请求下发该布局。
+- Search 接受一个或两个数据业务，可外加最多两个显式 Action；三个及以上业务在二层调用前返回模板不适用。
+- 首层必须完整标定用户显式字段，不得为了迁就布局限制而省略其他业务。
+- Search 按业务数和 Action 数过滤布局后缀，同时要求每个保留的 Template 独立完整覆盖所属业务的
+  用户显式字段：双业务只保留 Support；单业务零、一个、两个 Action 分别保留 Full、Hero+Full、Compact。
+- `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 的最终组合由第二层完成。
+- `TwoSupportLayout` 是 `2x2` 双业务的唯一布局，事件绑定在 Support 内部。
 
 结果是 `TemplateRouteSelection`，其 `availableTemplateIds` 仍是二层候选集，不是最终选择。
 
@@ -147,7 +146,7 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 
 - 首层通过的业务 Template 候选，以及每个候选的用途描述、完整 Props Schema、必填/可选关系、
   参数关系和素材参数可用源。
-- 根据当前尺寸、业务数量和 Action 数量确定的唯一 Layout Template 完整契约。
+- 根据当前尺寸、业务数量、Action 数量和素材条件确定的一个或多个 Layout Template 完整契约。
 - 已批准的 Action ID/文案、当前 Action Template 完整签名、可用素材和 Theme ID。
 - 删除未候选模板目录后的 Provider 二层业务指导。
 
@@ -155,7 +154,9 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 `Template(...)` 调用语法和安全禁止项。二层不接收 TaskSpec、`dataFacts`、`mustKeep` 或数据样例，
 只输出受限的 Layout/Template 调用和
 展示 Props。业务 Template 是不可拆分的原子节点，禁止用基础组件补业务内容。候选经布局后缀、Action
-数量或必需参数筛选后为空时直接失败。二层不能输出原始 `call/args`，也不能绕过
+数量或必需参数筛选后为空时直接失败。单业务一个 Action 时，若存在语义匹配图标，二层可在
+`HeroActionLayout + PillAction` 与 `FullIconActionLayout + IconAction` 中选择；双业务只能使用
+`TwoSupportLayout`，不生成根级 Action child。二层不能输出原始 `call/args`，也不能绕过
 `EventAction(props.actionId)` 生成交互。
 
 ### 3.4 受信编译与展开

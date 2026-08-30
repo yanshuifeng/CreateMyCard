@@ -63,16 +63,22 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 
 ## UI 模板语法
 
-业务模板 ID 必须以 `Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 之一结束。五类后缀分别表示：
+业务模板 ID 必须以 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 之一结束。六类后缀分别表示：
 
-- `Compact`：约 `2x1`，用于两个 Compact 拼成 `2x2`，或一个 Compact 加两个 PillAction；
+- `Support`：约 `2x1`，两个不同业务 Support 拼成 `2x2`；事件按需绑定在 Support 内部，不生成根级 Action；
+- `Compact`：约 `2x1`，只用于一个 Compact 加两个 PillAction；
 - `Hero`：约 `2x1.7`，用于 `2x2` 的 Hero 加一个 PillAction；
-- `Full`：完整 `2x2`，无 Action 时单独使用；
+- `Full`：完整 `2x2`，无 Action 时单独使用，或在存在语义匹配图标素材时加一个 IconAction；
 - `WideHero`：约 `4x1.7`，用于 `2x4` 的 WideHero 加一个 PillAction；
 - `WideFull`：完整 `4x2`，单独使用。
 
 业务模板不再重复声明 `supportedCardSizes` 和 `requiresLayoutAction`，Registry 直接从后缀推导。业务语义或
 状态写在后缀前，例如 `BatteryOverviewChargingWeatherCompact@1`。布局 Provider 不受此后缀约束。
+
+每个 `Support` 模板提供可选的 `actionId` Prop，并在源模板中使用受控
+`IfPresent(props.actionId, ...)` 形成内部点击热区；构建阶段再转换为内部 `IfParam`
+节点。
+没有已选事件时省略该 Prop；事件值只能来自第一层已批准候选，并由服务端按原始 `call/args` 可信绑定。
 
 模板 ID 直接表达 UI 形态，不再声明 `Variant`、`allowedParentComponents` 或 `limits`。模板头只定义外部
 `props`；`?` 表示可选，支持 `string`、`asset`、`number`、`integer` 和 `boolean`：
@@ -139,7 +145,7 @@ Column({"width": "matchParent", "itemMargin": 4},
 允许接收子组件的布局模板显式声明 `...children`，且正文只能放置一次 `children`：
 
 ```text
-#Template TwoCompactLayout@1(props: {  }, ...children)
+#Template TwoSupportLayout@1(props: {  }, ...children)
 data = {
 }
 
@@ -231,16 +237,15 @@ PillAction 模板使用 `$theme('actionStyle.backgroundColor')` 和 `$theme('act
 `TemplateRouteSelection`。只有这个内部结果才包含 `componentCandidates` 和
 `availableTemplateIds`：
 
-1. Search 只允许命中一个业务组件；每个保留模板必须独立完整承载该业务的显式字段；
+1. `2x2` Search 最多允许命中两个业务组件；每个保留模板必须独立完整承载该业务的显式字段；
 2. 显式字段满足后，再检查候选模板自身 `primaryData` 与 `secondaryData` 在 TaskSpec 中全部存在；
 3. `candidateOutputFields` 只是候选数据投影，不直接等于强制显示集合；
-4. 显式请求包含两个及以上数据业务，或任一字段无法在自己的业务组件内覆盖时，在进入第二层前返回模板不匹配；
-5. Search 保留字段匹配、模板准入、候选排序和数量上限能力；同一业务可同时返回多个 Hero、多个 Compact
+4. 显式请求包含三个及以上数据业务，或任一字段无法在自己的业务组件内覆盖时，在进入第二层前返回模板不匹配；
+5. Search 保留字段匹配、模板准入、候选排序和数量上限能力；同一业务可同时返回多个 Hero、Full 或 Compact
    等同形态候选，不能退化为无序枚举；
-6. Action 独立于数据业务计数；单业务可以组合零到两个显式 Action，Search 不按 Action 数量过滤模板
-   后缀，最终形态由第二层处理；
-7. `TwoCompactLayout` 和多业务模板资源暂时保留用于兼容与负向验证，但默认 Search 不向第二层下发多业务
-   候选。
+6. Action 独立于数据业务计数；单业务按零、一个、两个 Action 分别保留 Full、Hero+Full、Compact；
+7. 双业务只保留 Support 后缀，可携带零到两个内部事件；Search 不选择事件的最终业务归属；
+8. 两个业务组合只使用 `TwoSupportLayout`；单业务不再提供双 Compact 组合。
 
 配置 `firstLayerComponentSelector: "llm"` 时，系统可走兼容选择器
 `plan_template_route_with_llm()`，由第一层直接产出 Theme、组件候选和 Action；该路径不是当前默认生产路径。
@@ -249,8 +254,9 @@ PillAction 模板使用 `$theme('actionStyle.backgroundColor')` 和 `$theme('act
 `availableTemplateIds` 按尺寸、布局和 Action 数量选择最终 UI 模板及展示 props；根布局也必须从 Layout
 Provider 选择模板。第二层不接收 TaskSpec、`dataFacts`、`mustKeep` 或数据样例，不重新判断展示字段，
 不得用基础组件补充业务内容。候选筛选后为空或必需 props 无法满足时直接失败。若第一层输出了 `action`，
-第二层按最终模板后缀在布局模板末尾调用 Action Provider：Hero/WideHero 使用一个
-`Template("PillAction@1", props)`，单 Compact 使用两个 PillAction 模板；Full、WideFull 和双 Compact
+第二层按最终模板后缀选择完整组合：Hero/WideHero 使用一个
+`Template("PillAction@1", props)`，单 Compact 使用两个 PillAction 模板；Full 仅可在
+`FullIconActionLayout` 中使用一个 IconAction；双 Support 把 actionId 各一次写入业务模板内部；WideFull
 不生成 Action。PillAction Props
 包含 `actionId`、`label` 和可选 `icon`，IconAction Props 包含 `actionId`、`icon`。第二层只决定展示内容，
 Action CardTpl 必须在交互组件样式中写入 `onClick: EventAction(props.actionId)`；微服务校验候选配对，
@@ -259,8 +265,8 @@ Action CardTpl 必须在交互组件样式中写入 `onClick: EventAction(props.
 ## 当前迁移范围
 
 天气、日历、手机电量、耳机、健康运动、应用使用时长、倒计时和系统内存当前共有
-81 个无 Variant 的业务 UI 模板；当前形成 11 个 Provider 业务领域。Layout Provider
-另提供 5 个支持 `...children` 的布局模板：名称包含 `Wide` 的布局只用于 `2x4`，其余布局只用于
+121 个无 Variant 的业务 UI 模板，其中 32 个是与 Compact 数据覆盖一一对应的 Support；当前形成 11 个业务组。Layout Provider
+另提供 6 个支持 `...children` 的布局模板：名称包含 `Wide` 的布局只用于 `2x4`，其余布局只用于
 `2x2`，两类布局不得混用。
 新增或修改资源后执行：
 

@@ -118,8 +118,8 @@ cloud/api/routes.py
    取得已批准能力 ID。
 3. 应用领域 content selectors，建立 `DataShape`。
 4. 根据 `firstLayerComponentSelector` 进入 Search 或旧 LLM 首层路线。
-5. 将请求转换为 `TemplateRouteSelection`；Search 结果只允许一个业务组件，多个业务在二层调用前失败，
-   零到两个显式 Action 不计入业务数量。
+5. 将请求转换为 `TemplateRouteSelection`；Search 结果允许一个或两个业务组件，三个以上业务在二层调用前
+   失败；双业务只保留 Support，零到两个显式 Action 绑定在 Support 内部。
 6. 调用 `_generate_selected_templates()` 完成二层生成、受信编译和 A2UI 产出。
 
 ### `_generate_selected_templates()`

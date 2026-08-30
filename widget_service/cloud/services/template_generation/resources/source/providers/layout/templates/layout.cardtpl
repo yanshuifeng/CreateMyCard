@@ -29,6 +29,20 @@ Column({
 )
 #End
 
+#Template FullIconActionLayout@1(props: {}, ...children)
+data = {
+}
+
+Stack({
+  "width": "matchParent",
+  "height": "matchParent",
+  "alignContent": "bottomEnd"
+},
+  children[0],
+  children[1]
+)
+#End
+
 
 #Template CompactTwoActionLayout@1(props: {}, ...children)
 data = {
@@ -60,7 +74,7 @@ Column({
 )
 #End
 
-#Template TwoCompactLayout@1(props: {}, ...children)
+#Template TwoSupportLayout@1(props: {}, ...children)
 data = {
 }
 

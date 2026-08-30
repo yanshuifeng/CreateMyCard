@@ -13,8 +13,6 @@ from core.errors import GenerationStatus
 from models.artifact import WidgetArtifact
 from services.artifact_store import ArtifactStore
 from services.template_generation.test_support.provider_gallery import (
-    MULTI_BUSINESS_UNSUPPORTED_ERROR,
-    MULTI_BUSINESS_UNSUPPORTED_REASON,
     ProviderGalleryBatchRunner,
     load_gallery_input_manifest,
     write_gallery_input_dataset,
@@ -125,7 +123,7 @@ def test_gallery_inputs_cover_all_provider_business_scenarios(tmp_path: Path) ->
 
     assert not stale_input.exists()
     assert len(manifest.providers) == 8
-    assert sum(len(provider.cases) for provider in manifest.providers) == 107
+    assert sum(len(provider.cases) for provider in manifest.providers) == 110
     scenario_ids = {
         case.scenarioId
         for provider in manifest.providers
@@ -188,7 +186,7 @@ def test_gallery_inputs_cover_all_provider_business_scenarios(tmp_path: Path) ->
         for case in provider.cases:
             if case.targetTemplateId:
                 targeted_cases.append(case)
-    assert len(targeted_cases) == 101
+    assert len(targeted_cases) == 108
     battery_full_ids = {
         case.targetTemplateId
         for case in targeted_cases
@@ -343,14 +341,14 @@ def test_gallery_inputs_cover_all_provider_business_scenarios(tmp_path: Path) ->
         manifest,
         "CalendarOverview",
         "two-contents",
-        "ScheduleOverviewMeetingLocationSourceCompact@1",
+        "ScheduleOverviewMeetingLocationSourceSupport@1",
     )
-    assert calendar_pair.partnerTemplateId == "WeatherOverviewCompact@1"
+    assert calendar_pair.partnerTemplateId == "WeatherOverviewSupport@1"
     weather_pair = _find_case(
         manifest,
         "WeatherOverview",
         "two-contents",
-        "WeatherOverviewCompact@1",
+        "WeatherOverviewSupport@1",
     )
     assert not weather_pair.partnerTemplateId.startswith(("Date", "Schedule", "Bluetooth"))
 
@@ -420,24 +418,22 @@ async def test_gallery_runner_calls_public_service_and_groups_a2ui_by_provider(
 
     assert not stale_output.exists()
     assert summary.total == 4
-    assert summary.success == 2
-    assert summary.failed == 1
+    assert summary.success == 3
+    assert summary.failed == 0
     assert summary.missing == 1
-    assert len(service.requests) == 2
+    assert len(service.requests) == 3
     assert all(service.template_candidate_ids)
     assert all(isinstance(item, dict) for item in service.template_sample_overrides)
-    assert sorted(len(item) for item in service.template_action_ids) == [0, 2]
+    assert sorted(len(item) for item in service.template_action_ids) == [0, 0, 2]
     assert sorted(len(request.candidateEventCandidates or []) for request in service.requests) == [
+        0,
         0,
         2,
     ]
     output_manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
     assert len(output_manifest["providers"]) == 1
     cases = output_manifest["providers"][0]["cases"]
-    assert {case["status"] for case in cases} == {"failed", "missing", "success"}
-    multi_business = next(case for case in cases if case["scenarioId"] == "two-contents")
-    assert multi_business["errorCode"] == MULTI_BUSINESS_UNSUPPORTED_ERROR
-    assert multi_business["errorMessage"] == MULTI_BUSINESS_UNSUPPORTED_REASON
+    assert {case["status"] for case in cases} == {"missing", "success"}
     for case in cases:
         if case["status"] != "success":
             assert case["a2uiFile"] == ""
@@ -459,10 +455,10 @@ async def test_gallery_dry_run_emits_missing_and_not_generated_results(
 
     summary = await runner.run(input_root, output_root, dry_run=True)
 
-    assert summary.total == 107
-    assert summary.failed == 32
-    assert summary.missing == 10
-    assert summary.not_generated == 65
+    assert summary.total == 110
+    assert summary.failed == 0
+    assert summary.missing == 9
+    assert summary.not_generated == 101
     assert service.requests == []
     reloaded = load_gallery_input_manifest(input_root)
     assert len(reloaded.providers) == 8

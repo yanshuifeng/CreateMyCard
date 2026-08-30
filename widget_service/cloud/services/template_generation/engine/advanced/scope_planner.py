@@ -838,9 +838,10 @@ def resolve_scope_layout_ids(
             <= layout.max_children_by_size[task_spec.size]
         ):
             continue
-        if action_count < layout.min_action_children_by_size[task_spec.size]:
+        direct_action_count = 0 if layout_id == "TwoSupportLayout" else action_count
+        if direct_action_count < layout.min_action_children_by_size[task_spec.size]:
             continue
-        if action_count > layout.max_action_children_by_size[task_spec.size]:
+        if direct_action_count > layout.max_action_children_by_size[task_spec.size]:
             continue
         allowed.append(layout_id)
     return tuple(sorted(allowed, key=lambda item: _layout_rank(item, count, action_count)))
@@ -1189,9 +1190,16 @@ def _theme_ids_for_components(
 def _layout_rank(layout_id: str, count: int, action_count: int) -> tuple[int, str]:
     preferred: dict[tuple[int, int], tuple[str, ...]] = {
         (1, 0): ("SingleFocusLayout", "WideSingleFocusLayout"),
-        (1, 1): ("HeroActionLayout", "SingleFocusLayout", "WideSingleFocusLayout"),
+        (1, 1): (
+            "HeroActionLayout",
+            "FullIconActionLayout",
+            "SingleFocusLayout",
+            "WideSingleFocusLayout",
+        ),
         (1, 2): ("CompactTwoActionLayout",),
-        (2, 0): ("TwoCompactLayout",),
+        (2, 0): ("TwoSupportLayout",),
+        (2, 1): ("TwoSupportLayout",),
+        (2, 2): ("TwoSupportLayout",),
     }
     order = preferred.get((count, action_count), ())
     return (order.index(layout_id) if layout_id in order else len(order), layout_id)

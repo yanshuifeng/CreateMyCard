@@ -239,8 +239,9 @@ class BusinessTemplateGroup:
         return (
             "SingleFocusLayout",
             "HeroActionLayout",
+            "FullIconActionLayout",
             "CompactTwoActionLayout",
-            "TwoCompactLayout",
+            "TwoSupportLayout",
             "WideSingleFocusLayout",
         )
 

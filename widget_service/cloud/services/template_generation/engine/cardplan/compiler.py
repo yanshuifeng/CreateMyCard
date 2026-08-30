@@ -395,18 +395,22 @@ def compile_ux_layout_card(
         provider_binding_roots=_provider_binding_roots(card_spec),
     )
     _validate_required_template_groups(state, contract)
+    layout_id = _parsed_layout_template_id(composition, registry)
     embedded_action_count = sum(
         _parsed_ux_action_component(child) is not None for child in composition.children
     )
-    if len(state.action_occurrences) != embedded_action_count:
+    if layout_id != "TwoSupportLayout" and len(state.action_occurrences) != embedded_action_count:
         raise TerselConversionError(
             "UX Layout Actions must use the dedicated Action nodes."
         )
     if any(action_id not in contract.content_action_ids for action_id in state.action_occurrences):
         raise TerselConversionError("UX Layout used an unapproved Action.")
     actual_actions = Counter(state.action_occurrences)
-    if any(count != 1 for count in actual_actions.values()):
-        raise TerselConversionError("UX Layout cannot repeat the same Action.")
+    expected_actions = Counter({action_id: 1 for action_id in contract.content_action_ids})
+    if actual_actions != expected_actions:
+        raise TerselConversionError(
+            "UX Layout Actions must consume each selected Action exactly once."
+        )
     expanded = _append_missing_required_literals_to_ux_layout(expanded, contract)
     expanded = _inject_ux_business_title(expanded, business_title, contract)
     expanded = _strip_2x2_composite_headers(expanded, size=task_spec.size)
@@ -5941,19 +5945,28 @@ def _validate_provider_template_layout_action_requirements(
         for child in action_children
         if (action_name := _parsed_ux_action_component(child)) is not None
     )
-    if len(layout_kinds) == 2 and set(layout_kinds) == {"Compact"} and not action_names:
-        if layout_id != "TwoCompactLayout":
+    if len(layout_kinds) == 2 and set(layout_kinds) == {"Support"} and not action_names:
+        if layout_id != "TwoSupportLayout":
             raise TerselConversionError(
-                "Two Compact Provider Templates require TwoCompactLayout."
+                "Two Support Provider Templates require TwoSupportLayout."
             )
         return
     if len(layout_kinds) != 1:
         raise TerselConversionError("Provider Template layout combination is invalid.")
     layout_kind = layout_kinds[0]
+    if layout_kind == "Full":
+        valid_full_combinations = {
+            ("SingleFocusLayout", ()),
+            ("FullIconActionLayout", ("IconAction",)),
+        }
+        if (layout_id, action_names) not in valid_full_combinations:
+            raise TerselConversionError(
+                f"Full Provider Template Action combination is invalid: {action_names}."
+            )
+        return
     expected_actions = {
         "Compact": ("PillAction", "PillAction"),
         "Hero": ("PillAction",),
-        "Full": (),
         "WideHero": ("PillAction",),
         "WideFull": (),
     }[layout_kind]
@@ -5964,7 +5977,6 @@ def _validate_provider_template_layout_action_requirements(
     expected_layout_id = {
         "Compact": "CompactTwoActionLayout",
         "Hero": "HeroActionLayout",
-        "Full": "SingleFocusLayout",
         "WideHero": "WideSingleFocusLayout",
         "WideFull": "WideSingleFocusLayout",
     }[layout_kind]

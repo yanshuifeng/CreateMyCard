@@ -22,19 +22,18 @@ JSON 或公开 Schema。Search 通过后，二层候选才会收窄到目标模�
 | 场景 | 预期模板组合 |
 | --- | --- |
 | 单内容 + 2 个 Action | Compact + 2 × PillAction |
-| 2 个内容 | 负向场景：固定标记为 `failed`，不调用模型 |
-| 单内容 + 1 个 Action | Hero + PillAction |
+| 2 个内容 | 2 × Support；事件仅在 Support 内部按需绑定 |
+| 单内容 + 1 个 Action | Hero + PillAction，或有语义图标时 Full + IconAction |
 | 单内容 | Full |
 
-因此每个 Compact 仍生成“单内容 + 2 个 Action”和“2 个内容”两个用例，每个 Hero 生成一个
-“单内容 + 1 个 Action”用例，每个 Full 生成一个“单内容”用例。当前 Search 暂不支持多业务组合，
-“2 个内容”作为能力边界负向用例保留，批跑器确定性记录错误码
-`TEMPLATE_SEARCH_MULTI_BUSINESS_UNSUPPORTED`，不调用服务或模型。业务缺少某个后缀时仍保留一张缺失占位卡。
+因此每个 Compact 生成“单内容 + 2 个 Action”用例，每个 Support 生成“2 个内容”用例，每个 Hero
+生成“单内容 + 1 个 Action”用例，每个 Full 生成“单内容”用例。双业务场景会选择另一个 Provider 的
+Support 作为配对内容并调用正式服务；业务缺少某个后缀时仍保留一张缺失占位卡。
 
 模拟输入从当前 `provider.json` 读取 Provider、业务、能力写入根，以及目标模板自己的主数据和次要数据；
 这些必选数据全部进入 `candidateOutputFields`。数据能力参数和 Action 内容来自当前能力注册表，用户 query
 明确描述每一个按钮的操作语义。缺少对应后缀时仍保留请求文件，但结果直接记录为“缺失
-Compact/Hero/Full 模板”，供端侧显示异常卡片。生成完成后还会检查 A2UI 的 Action 数量，不符合场景预期的
+Support/Compact/Hero/Full 模板”，供端侧显示异常卡片。生成完成后还会检查 A2UI 的 Action 数量，不符合场景预期的
 结果按失败记录。Provider 或单模板被当前管控配置禁用时，用例仍会出现在清单中，但直接标记为禁用，不调用
 模型。
 

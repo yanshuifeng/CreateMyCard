@@ -305,8 +305,9 @@ def test_checked_in_layout_templates_use_concrete_container_blueprints() -> None
     registry = get_cardplan_registry()
     fixed_slots = {
         "HeroActionLayout@1": 2,
+        "FullIconActionLayout@1": 2,
         "CompactTwoActionLayout@1": 3,
-        "TwoCompactLayout@1": 2,
+        "TwoSupportLayout@1": 2,
     }
     variable_children = {
         "SingleFocusLayout@1",
@@ -350,6 +351,21 @@ def test_checked_in_action_templates_expose_second_layer_props() -> None:
         assert options["onClick"].items[0].kind == "parameter"
         assert options["onClick"].items[0].name == "actionId"
         assert "_actionId" not in options
+
+
+def test_support_template_exposes_optional_internal_action_prop() -> None:
+    support = get_cardplan_registry().require_template("WeatherOverviewSupport@1")
+    variant = support.variants[0]
+    schema = variant.parameters_schema
+
+    assert schema["properties"]["actionId"]["type"] == "string"
+    assert "actionId" not in schema["required"]
+    action_guard = variant.root.children[-1]
+    assert action_guard.component == "IfParam"
+    assert action_guard.values[0].value == "actionId"
+    action_options = action_guard.children[0].values[0].properties
+    assert action_options["onClick"].kind == "event-action"
+    assert action_options["onClick"].items[0].name == "actionId"
 
 
 @pytest.mark.parametrize(
@@ -410,14 +426,24 @@ def test_provider_template_layout_suffix_combinations_are_enforced() -> None:
         "2x2",
     )
     _validate_provider_template_layout_action_requirements(
-        "TwoCompactLayout",
+        "TwoSupportLayout",
         (
-            template("WeatherOverviewCompact@1"),
-            template("BatteryOverviewNormalWeatherCompact@1"),
+            template("WeatherOverviewSupport@1"),
+            template("BatteryOverviewNormalWeatherSupport@1"),
         ),
         (),
         "2x2",
     )
+    with pytest.raises(TerselConversionError, match="layout combination is invalid"):
+        _validate_provider_template_layout_action_requirements(
+            "TwoSupportLayout",
+            (
+                template("WeatherOverviewCompact@1"),
+                template("BatteryOverviewNormalWeatherCompact@1"),
+            ),
+            (),
+            "2x2",
+        )
     _validate_provider_template_layout_action_requirements(
         "HeroActionLayout",
         (template("BatteryOverviewNormalHero@1"),),
@@ -428,6 +454,12 @@ def test_provider_template_layout_suffix_combinations_are_enforced() -> None:
         "SingleFocusLayout",
         (template("WeatherOverviewFull@1"),),
         (),
+        "2x2",
+    )
+    _validate_provider_template_layout_action_requirements(
+        "FullIconActionLayout",
+        (template("WeatherOverviewFull@1"),),
+        (icon,),
         "2x2",
     )
     _validate_provider_template_layout_action_requirements(

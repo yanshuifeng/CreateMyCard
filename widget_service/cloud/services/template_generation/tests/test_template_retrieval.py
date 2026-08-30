@@ -264,7 +264,7 @@ def test_calendar_date_and_schedule_require_one_covering_business_template() -> 
         },
     )
 
-    with pytest.raises(TemplateRetrievalMiss, match="cannot cover one CalendarOverview slot"):
+    with pytest.raises(TemplateRetrievalMiss, match="no provider template|cannot cover"):
         retrieve_template_variants(
             query,
             task,
@@ -317,7 +317,8 @@ def test_first_layer_prompt_includes_task_fields_rules_and_action_candidates() -
     assert payload["actionCandidates"] == [
         {"eventId": "event.open.weather", "call": "clickToDeeplink"}
     ]
-    assert "不得为了迁就单业务限制而省略" in messages[0]["content"]
+    assert "不得为了迁就布局限制而省略" in messages[0]["content"]
+    assert "2x2 最多保留两个" in messages[0]["content"]
 
 
 def test_search_rejects_2x4_before_prompt_or_retrieval() -> None:
@@ -337,7 +338,7 @@ def test_search_rejects_2x4_before_prompt_or_retrieval() -> None:
         )
 
 
-def test_search_rejects_two_data_businesses_before_the_second_layer() -> None:
+def test_search_keeps_two_data_businesses_as_support_templates() -> None:
     task = _task()
     task.dataModelSchema["data"]["calendar"] = {
         "events": [
@@ -353,31 +354,40 @@ def test_search_rejects_two_data_businesses_before_the_second_layer() -> None:
         writeResultTo="/data/calendar",
         candidateOutputFields=["/events/0/title", "/events/0/dtStart"],
     )
-    with pytest.raises(TemplateRetrievalMiss, match="one data business"):
-        retrieve_template_variants(
-            TemplateRetrievalQuery(
-                themeId="family-weather-care-blue",
-                requiredOutputFieldsByCapability={
-                    "ViewWeather": ("/current/condition",),
-                    "GetCalendarEvents": ("/events/0/title", "/events/0/dtStart"),
-                },
-            ),
-            task,
-            CardPlanRegistry(),
-            (_binding(), calendar),
-            {
-                "dataBindings": [
-                    {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
-                    {
-                        "capabilityId": "GetCalendarEvents",
-                        "writeResultTo": "/data/calendar",
-                    },
-                ]
+    result = retrieve_template_variants(
+        TemplateRetrievalQuery(
+            themeId="family-weather-care-blue",
+            requiredOutputFieldsByCapability={
+                "ViewWeather": ("/current/condition",),
+                "GetCalendarEvents": ("/events/0/title", "/events/0/dtStart"),
             },
-        )
+        ),
+        task,
+        CardPlanRegistry(),
+        (_binding(), calendar),
+        {
+            "dataBindings": [
+                {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
+                {
+                    "capabilityId": "GetCalendarEvents",
+                    "writeResultTo": "/data/calendar",
+                },
+            ]
+        },
+    )
+
+    assert {item.component_id for item in result.component_candidates} == {
+        "CalendarOverview",
+        "WeatherOverview",
+    }
+    assert all(
+        template_id.endswith("Support@1")
+        for candidate in result.component_candidates
+        for template_id in candidate.available_template_ids
+    )
 
 
-def test_search_rejects_two_businesses_backed_by_one_capability() -> None:
+def test_search_keeps_two_support_businesses_backed_by_one_capability() -> None:
     task = TaskSpec(
         userQuery="显示昨晚睡眠时长和今天步数",
         size="2x2",
@@ -410,21 +420,30 @@ def test_search_rejects_two_businesses_backed_by_one_capability() -> None:
         },
     )
 
-    with pytest.raises(TemplateRetrievalMiss, match="one data business"):
-        retrieve_template_variants(
-            query,
-            task,
-            CardPlanRegistry(),
-            (binding,),
-            {
-                "dataBindings": [
-                    {
-                        "capabilityId": "GetHealthAndSportSummary",
-                        "writeResultTo": "/data/healthSport",
-                    }
-                ]
-            },
-        )
+    result = retrieve_template_variants(
+        query,
+        task,
+        CardPlanRegistry(),
+        (binding,),
+        {
+            "dataBindings": [
+                {
+                    "capabilityId": "GetHealthAndSportSummary",
+                    "writeResultTo": "/data/healthSport",
+                }
+            ]
+        },
+    )
+
+    assert {item.component_id for item in result.component_candidates} == {
+        "ActivityOverview",
+        "SleepOverview",
+    }
+    assert all(
+        template_id.endswith("Support@1")
+        for candidate in result.component_candidates
+        for template_id in candidate.available_template_ids
+    )
 
 
 def test_search_allows_one_data_business_with_action() -> None:
@@ -453,6 +472,9 @@ def test_search_allows_one_data_business_with_action() -> None:
 
     assert len(result.component_candidates) == 1
     assert result.action_id == "event.open.weather"
+    template_ids = result.component_candidates[0].available_template_ids
+    assert any(template_id.endswith("Hero@1") for template_id in template_ids)
+    assert any(template_id.endswith("Full@1") for template_id in template_ids)
 
 
 def test_search_allows_one_data_business_with_two_actions() -> None:
@@ -496,8 +518,8 @@ def test_search_allows_one_data_business_with_two_actions() -> None:
     )
 
 
-def test_search_keeps_multiple_candidates_for_each_layout_kind() -> None:
-    """Search 保留同形态的多个候选，第二层再按布局选择最终模板。"""
+def test_search_without_action_keeps_only_full_candidates() -> None:
+    """没有事件时 Search 只保留 Full，避免第二层生成多余动作区域。"""
     result = retrieve_template_variants(
         _query("/current/condition"),
         _task(),
@@ -507,11 +529,7 @@ def test_search_keeps_multiple_candidates_for_each_layout_kind() -> None:
     )
 
     template_ids = set(result.component_candidates[0].available_template_ids)
-    assert {
-        "WeatherOverviewHero@1",
-        "WeatherOverviewAirQualityHero@1",
-    }.issubset(template_ids)
-    assert "WeatherOverviewCompact@1" in template_ids
+    assert template_ids == {"WeatherOverviewFull@1"}
 
 
 def test_search_index_reports_per_field_matches_before_route_intersection() -> None:
@@ -718,13 +736,13 @@ def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
     battery_candidate = next(
         item for item in result.component_candidates if item.component_id == "BatteryOverview"
     )
-    assert "BatteryOverviewNormalPowerTemperatureIconCompact@1" in (
+    assert "BatteryOverviewNormalPowerTemperatureIconSupport@1" in (
         battery_candidate.available_template_ids
     )
     weather_candidate = next(
         item for item in result.component_candidates if item.component_id == "WeatherOverview"
     )
-    assert "WeatherOverviewTemperatureIconCompact@1" in (
+    assert "WeatherOverviewTemperatureIconSupport@1" in (
         weather_candidate.available_template_ids
     )
 
@@ -803,13 +821,13 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
     weather_candidate = next(
         item for item in result.component_candidates if item.component_id == "WeatherOverview"
     )
-    assert "WeatherOverviewTemperatureAlertUvIconCompact@1" in (
+    assert "WeatherOverviewTemperatureAlertUvIconSupport@1" in (
         weather_candidate.available_template_ids
     )
     battery_candidate = next(
         item for item in result.component_candidates if item.component_id == "BatteryOverview"
     )
-    assert "BatteryOverviewNormalPowerTemperatureIconCompact@1" in (
+    assert "BatteryOverviewNormalPowerTemperatureIconSupport@1" in (
         battery_candidate.available_template_ids
     )
 
@@ -880,6 +898,6 @@ def test_countdown_weather_compact_uses_explicit_weather_fields() -> None:
     weather_candidate = next(
         item for item in result.component_candidates if item.component_id == "WeatherOverview"
     )
-    assert "WeatherOverviewTemperatureUvCompact@1" in (
+    assert "WeatherOverviewTemperatureUvSupport@1" in (
         weather_candidate.available_template_ids
     )

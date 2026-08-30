@@ -265,6 +265,95 @@
         "/earphoneName"
       ],
       "secondaryData": []
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewDisconnectedPhoneSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "蓝牙耳机连接与电量摘要，可展示设备名、盒电量和左右耳电量。 组件形态：disconnectedPhone。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/isConnected"
+      ],
+      "secondaryData": []
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewEarbudsPhoneSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "蓝牙耳机连接与电量摘要，可展示设备名、盒电量和左右耳电量。 组件形态：earbudsPhone。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [
+        "/batteryLevel",
+        "/leftBatteryLevel",
+        "/rightBatteryLevel"
+      ],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/isConnected"
+      ],
+      "secondaryData": []
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewCaseStatusSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "耳机设备电量和充电状态紧凑摘要，顶部标题，下方展示耳机盒电量与充电状态，并可展示左右耳机充电状态；用于 2x2 单 Compact 加两个 PillAction。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [
+        "/leftChargingStatusDesc",
+        "/rightChargingStatusDesc"
+      ],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/batteryLevel",
+        "/chargingStatusDesc"
+      ],
+      "secondaryData": []
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewLeftEarbudSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "蓝牙耳机连接与电量摘要，可展示设备名、盒电量和左右耳电量。 组件形态：leftEarbud。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/isConnected"
+      ],
+      "secondaryData": [
+        "/earphoneName",
+        "/leftBatteryLevel"
+      ]
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewRightEarbudSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "蓝牙耳机连接与电量摘要，可展示设备名、盒电量和左右耳电量。 组件形态：rightEarbud。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/isConnected"
+      ],
+      "secondaryData": [
+        "/earphoneName",
+        "/rightBatteryLevel"
+      ]
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewEarbudPairPhoneSupport@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "蓝牙耳机连接与电量摘要，可展示设备名、盒电量和左右耳电量。 组件形态：earbudPairPhone。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/isConnected"
+      ],
+      "secondaryData": [
+        "/leftBatteryLevel",
+        "/rightBatteryLevel"
+      ]
     }
   ],
   "compatibility": {

@@ -68,22 +68,6 @@ def frame_ux_layout_root_children(
     content = tuple(child for child in root.children if child not in actions)
     if len(content) <= maximum:
         return normalized, trailing_delimiters_repaired
-    if layout_id in {"SingleFocusLayout", "HeroActionLayout"} and not actions:
-        expanded_layout_id = "TwoCompactLayout"
-        expanded_layout = registry.require_ux_layout_component(expanded_layout_id)
-        expanded_maximum = expanded_layout.max_children_by_size[size]
-        if (
-            (allowed_layout_ids is None or expanded_layout_id in allowed_layout_ids)
-            and len(content) <= expanded_maximum
-        ):
-            framed_root = ParsedCall(
-                kind="template",
-                name=expanded_layout_id + "@1",
-                values=({},),
-                children=(*content, *actions),
-                span=root.span,
-            )
-            return _serialize_call(framed_root) + ";", True
     business_children = tuple(
         child
         for child in content

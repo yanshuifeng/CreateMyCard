@@ -209,7 +209,7 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         if path.is_dir()
     }
 
-    assert len(registry.provider_template_ids) == 90
+    assert len(registry.provider_template_ids) == 129
     assert {
         "ActivityOverviewFull@1",
         "AppUsageOverviewFull@1",
@@ -241,7 +241,6 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         "WorkoutOverviewFull@1",
         "SingleFocusLayout@1",
         "CompactTwoActionLayout@1",
-        "TwoCompactLayout@1",
         "WideSingleFocusLayout@1",
     }.issubset(registry.provider_template_ids)
     assert provider_directories == {
@@ -273,7 +272,7 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
 
 def test_business_template_suffix_drives_size_and_provider_data_tiers():
     registry = get_cardplan_registry()
-    layout_kinds = {"Compact", "Hero", "Full", "WideHero", "WideFull"}
+    layout_kinds = {"Support", "Compact", "Hero", "Full", "WideHero", "WideFull"}
 
     for template_id in registry.provider_template_ids:
         definition = registry.require_template(template_id)
@@ -309,8 +308,9 @@ def test_layout_template_wide_marker_drives_exclusive_card_size() -> None:
     expected_sizes = {
         "SingleFocusLayout": ("2x2",),
         "HeroActionLayout": ("2x2",),
+        "FullIconActionLayout": ("2x2",),
         "CompactTwoActionLayout": ("2x2",),
-        "TwoCompactLayout": ("2x2",),
+        "TwoSupportLayout": ("2x2",),
         "WideSingleFocusLayout": ("2x4",),
     }
 
@@ -365,13 +365,13 @@ def test_business_groups_are_derived_from_provider_templates() -> None:
     assert provider_layout_components == set(registry.ux_layout_components)
     assert len(registry.ux_business_component_provider_ids) == 11
     calendar = registry.require_ux_business_component("CalendarOverview")
-    assert len(calendar.local_template_ids) == 13
+    assert len(calendar.local_template_ids) == 17
     assert "ScheduleOverviewMeetingCompact@1" in calendar.local_template_ids
     assert not any(
         template_id.startswith("DateOverview")
         for template_id in calendar.local_template_ids
     )
-    assert len(registry.ux_layout_component_provider_ids) == 5
+    assert len(registry.ux_layout_component_provider_ids) == 6
     for bundle in registry.provider_bundles.values():
         payload = json.loads(
             (registry.source_root / "providers" / bundle.manifest.provider_id.removeprefix(
@@ -1693,7 +1693,7 @@ def test_earphone_templates_bind_progress_color_to_theme_support_content() -> No
             assert color.kind == "theme"
             assert color.name == "supportContentColor"
 
-    assert progress_count == 22
+    assert progress_count == 29
 
 
 def test_business_artwork_assets_preserve_their_original_colors() -> None:
@@ -1752,7 +1752,7 @@ def test_calendar_monochrome_source_icons_use_the_theme_primary_color() -> None:
             assert "_preserveOriginalColor" not in options.properties
             themed_source_icons.append(template_id)
 
-    assert len(themed_source_icons) == 5
+    assert len(themed_source_icons) == 7
 
 
 def test_device_ring_progress_and_icons_bind_to_distinct_theme_colors() -> None:
@@ -1872,7 +1872,7 @@ def test_pr7_visual_fixes_are_encoded_in_provider_cardtpl_variants():
 def test_calendar_templates_follow_latest_schedule_contract() -> None:
     registry = get_cardplan_registry()
     calendar = registry.require_ux_business_component("CalendarOverview")
-    assert len(calendar.local_template_ids) == 13
+    assert len(calendar.local_template_ids) == 17
     assert "ScheduleOverviewDatedMeetingHero@1" in calendar.local_template_ids
     assert not any(
         template_id.startswith("DateOverview")
@@ -1902,7 +1902,7 @@ def test_calendar_templates_follow_latest_schedule_contract() -> None:
                 assert font_color.value != "#991F4799"
             if font_color.kind == "theme" and font_color.name == "supportContentColor":
                 support_content_text_count += 1
-    assert support_content_text_count == 50
+    assert support_content_text_count == 60
 
     second_layer_rules = registry.provider_second_layer_rules(("CalendarOverview",))
     assert len(second_layer_rules) == 1
@@ -2785,11 +2785,24 @@ def _provider_field(value: Any, field_type: str) -> dict[str, Any]:
 
 
 @pytest.mark.asyncio
-async def test_q094_multi_business_fields_are_rejected_before_the_second_layer():
+async def test_q094_multi_business_uses_support_templates_with_internal_actions():
     task_spec = TaskSpec(
         userQuery="刚睡醒，看看昨晚睡了多久、睡眠得分和今天走了多少步",
         size="2x2",
-        eventCandidates=[],
+        eventCandidates=[
+            EventAction(
+                id="event.open.sleep.details",
+                displayLabel="睡眠详情",
+                call="clickToIntent",
+                args={"intentName": "event.open.sleep.details"},
+            ),
+            EventAction(
+                id="event.open.activity.details",
+                displayLabel="活动详情",
+                call="clickToIntent",
+                args={"intentName": "event.open.activity.details"},
+            ),
+        ],
         assetCandidates=[
             {
                 "src": "resources/base/media/moon_z_fill_1.svg",
@@ -2855,7 +2868,10 @@ async def test_q094_multi_business_fields_are_rejected_before_the_second_layer()
                         "/dailySteps",
                     ]
                 },
-                "action": None,
+                "action": [
+                    "event.open.sleep.details",
+                    "event.open.activity.details",
+                ],
             }
 
         async def generate(
@@ -2866,23 +2882,24 @@ async def test_q094_multi_business_fields_are_rejected_before_the_second_layer()
         ) -> str:
             self.second_layer_prompt = prompt
             return (
-                'Template("TwoCompactLayout@1",{},'
-                'Template("SleepOverviewCompact@1",{}),'
-                'Template("ActivityOverviewCompact@1",{}));'
+                'Template("TwoSupportLayout@1",{},'
+                'Template("SleepOverviewSupport@1",'
+                '{"actionId":"event.open.sleep.details"}),'
+                'Template("ActivityOverviewSupport@1",'
+                '{"actionId":"event.open.activity.details"}));'
             )
 
     model = Q094TemplateModel()
-    with pytest.raises(TemplateRouteNotApplicable, match="one data business"):
-        await generate_template_a2ui(
-            task_spec,
-            card_spec,
-            (binding,),
-            model,
-            trusted_template_candidate_ids=(
-                "SleepOverviewCompact@1",
-                "ActivityOverviewCompact@1",
-            ),
-        )
+    output = await generate_template_a2ui(
+        task_spec,
+        card_spec,
+        (binding,),
+        model,
+        trusted_template_candidate_ids=(
+            "SleepOverviewSupport@1",
+            "ActivityOverviewSupport@1",
+        ),
+    )
 
     assert model.first_layer_prompt is not None
     first_layer_payload = json.loads(model.first_layer_prompt[1]["content"])
@@ -2894,7 +2911,17 @@ async def test_q094_multi_business_fields_are_rejected_before_the_second_layer()
         ]
     }
     assert first_layer_payload["providerFirstLayerRules"]
-    assert model.second_layer_prompt is None
+    assert model.second_layer_prompt is not None
+    second_layer_prompt = model.second_layer_prompt[1]["content"]
+    assert 'allowedUxLayouts=["TwoSupportLayout"]' in second_layer_prompt
+    assert "PillAction@1" not in second_layer_prompt
+    assert output.template_ids == (
+        "SleepOverviewSupport@1",
+        "ActivityOverviewSupport@1",
+        "TwoSupportLayout@1",
+    )
+    assert "event.open.sleep.details" in output.a2ui
+    assert "event.open.activity.details" in output.a2ui
 
 
 class _FixedTemplateModel:
@@ -3403,7 +3430,7 @@ async def test_bluetooth_hero_supports_connection_action() -> None:
 
 
 @pytest.mark.asyncio
-async def test_bluetooth_music_action_requires_a_hero_template():
+async def test_bluetooth_music_action_can_use_full_with_icon_action():
     binding = CandidateDataBinding(
         capabilityId="GetEarphoneInfo",
         writeResultTo="/data/earphone",
@@ -3444,23 +3471,27 @@ async def test_bluetooth_music_action_requires_a_hero_template():
         required_fields=("/isConnected", "/batteryLevel"),
         action_id="event.open.music.daily",
         body=(
-            'Template("SingleFocusLayout@1",{},'
+            'Template("FullIconActionLayout@1",{},'
             'Template("BluetoothDeviceOverviewCaseFull@1",{}),'
             'Template("IconAction@1",{"actionId":"event.open.music.daily",'
             '"icon":"resources/base/media/icon_music.svg"}));'
         ),
     )
 
-    with pytest.raises(
-        TemplateRouteNotApplicable,
-        match="Hero templates cannot cover all requested fields",
-    ):
-        await generate_template_a2ui(
-            task_spec,
-            _bluetooth_card_spec(),
-            (binding,),
-            model,
-        )
+    output = await generate_template_a2ui(
+        task_spec,
+        _bluetooth_card_spec(),
+        (binding,),
+        model,
+    )
+
+    assert output.template_ids == (
+        "BluetoothDeviceOverviewCaseFull@1",
+        "IconAction@1",
+        "FullIconActionLayout@1",
+    )
+    assert "event.open.music.daily" in output.a2ui
+    assert "resources/base/media/icon_music.svg" in output.a2ui
 
 
 def test_bluetooth_identity_without_battery_is_a_complete_provider_fact():
@@ -3942,7 +3973,7 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
 
         async def generate_json(self, *_args: Any, **_kwargs: Any) -> dict[str, Any]:
             return {
-                "themeId": "system-low-power-blue",
+                "themeId": "battery-yellow",
                 "requiredOutputFieldsByCapability": {
                     "GetPhoneBatteryInfo": [
                         "/batterySOC",
@@ -3961,7 +3992,7 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
         ) -> str:
             self.second_layer_prompt = prompt
             return (
-                'Template("ActionMatrixLayout@1",{},'
+                'Template("CompactTwoActionLayout@1",{},'
                 'Template("BatteryOverviewProgressCompact@1",{}),'
                 'Template("PillAction@1",{"actionId":"event.setPowerSavingMode",'
                 '"label":"省电模式"}),'
@@ -4011,12 +4042,12 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
     assert output.template_ids == (
         "BatteryOverviewProgressCompact@1",
         "PillAction@1",
-        "ActionMatrixLayout@1",
+        "CompactTwoActionLayout@1",
     )
     assert model.second_layer_prompt is not None
     second_layer_user = model.second_layer_prompt[1]["content"]
     assert "BatteryOverviewProgressCompact@1" in second_layer_user
-    assert "ActionMatrixLayout@1" in output.template_ids
+    assert "CompactTwoActionLayout@1" in output.template_ids
     assert output.a2ui.count('"call":"clickToIntent"') == 2
     assert "手机电量" in output.a2ui
     assert "batterySOCText" in output.a2ui

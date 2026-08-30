@@ -39,7 +39,7 @@
       "templateId": "WeatherOverviewTemperatureIconCompact@1",
       "businessId": "WeatherOverview",
       "capabilityId": "ViewWeather",
-      "description": "天气温度图标紧凑行；用于 2x2 双层 Compact 组合，上层展示温度、城市和天气图标。 组件形态：temperatureIconCompact。",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标。 组件形态：temperatureIconCompact。",
       "entry": "templates/weather-overview.cardtpl",
       "primaryData": [
         "/current/temperatureText"
@@ -55,7 +55,7 @@
       "templateId": "WeatherOverviewTemperatureAlertUvIconCompact@1",
       "businessId": "WeatherOverview",
       "capabilityId": "ViewWeather",
-      "description": "天气温度图标紧凑行；用于 2x2 双层 Compact 组合，上层展示温度、城市和天气图标，同时要求预警和紫外线字段参与模板匹配。组件形态：temperatureIconCompact。",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标，同时要求预警和紫外线字段参与模板匹配。组件形态：temperatureIconCompact。",
       "entry": "templates/weather-overview.cardtpl",
       "primaryData": [
         "/current/temperatureText"
@@ -73,7 +73,7 @@
       "templateId": "WeatherOverviewTemperatureUvIconCompact@1",
       "businessId": "WeatherOverview",
       "capabilityId": "ViewWeather",
-      "description": "天气温度图标紧凑行；用于 2x2 双层 Compact 组合，上层展示温度、城市和天气图标，同时要求紫外线字段参与模板匹配。组件形态：temperatureIconCompact。",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标，同时要求紫外线字段参与模板匹配。组件形态：temperatureIconCompact。",
       "entry": "templates/weather-overview.cardtpl",
       "primaryData": [
         "/current/temperatureText"
@@ -90,7 +90,7 @@
       "templateId": "WeatherOverviewTemperatureUvCompact@1",
       "businessId": "WeatherOverview",
       "capabilityId": "ViewWeather",
-      "description": "天气温度紧凑行；用于 2x2 双层 Compact 组合，展示温度、城市和天气，同时要求紫外线字段参与模板匹配。无业务 Action 或无合适天气图标素材时使用。组件形态：temperatureCompact。",
+      "description": "天气温度紧凑行；用于 2x2 紧凑内容区域，展示温度、城市和天气，同时要求紫外线字段参与模板匹配。无业务 Action 或无合适天气图标素材时使用。组件形态：temperatureCompact。",
       "entry": "templates/weather-overview.cardtpl",
       "primaryData": [
         "/current/temperatureText"
@@ -186,6 +186,90 @@
         "/location/districtName",
         "/current/condition",
         "/current/coldLevel"
+      ]
+    },
+    {
+      "templateId": "WeatherOverviewSupport@1",
+      "businessId": "WeatherOverview",
+      "capabilityId": "ViewWeather",
+      "description": "温度紧凑版；可选天气图标，辅助显示城市、天气和感冒指数。形态：temperatureCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/weather-overview.cardtpl",
+      "primaryData": [
+        "/current/temperatureText"
+      ],
+      "secondaryData": [
+        "/location/districtName",
+        "/current/condition",
+        "/current/coldLevel"
+      ]
+    },
+    {
+      "templateId": "WeatherOverviewTemperatureIconSupport@1",
+      "businessId": "WeatherOverview",
+      "capabilityId": "ViewWeather",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标。 组件形态：temperatureIconCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "entry": "templates/weather-overview.cardtpl",
+      "primaryData": [
+        "/current/temperatureText"
+      ],
+      "secondaryData": [
+        "/current/condition"
+      ],
+      "optionalData": [
+        "/location/districtName"
+      ]
+    },
+    {
+      "templateId": "WeatherOverviewTemperatureAlertUvIconSupport@1",
+      "businessId": "WeatherOverview",
+      "capabilityId": "ViewWeather",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标，同时要求预警和紫外线字段参与模板匹配。组件形态：temperatureIconCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "entry": "templates/weather-overview.cardtpl",
+      "primaryData": [
+        "/current/temperatureText"
+      ],
+      "secondaryData": [
+        "/current/condition",
+        "/current/alertLevel",
+        "/current/uvIndex"
+      ],
+      "optionalData": [
+        "/location/districtName"
+      ]
+    },
+    {
+      "templateId": "WeatherOverviewTemperatureUvIconSupport@1",
+      "businessId": "WeatherOverview",
+      "capabilityId": "ViewWeather",
+      "description": "天气温度图标紧凑行；用于 2x2 紧凑内容区域，上层展示温度、城市和天气图标，同时要求紫外线字段参与模板匹配。组件形态：temperatureIconCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "entry": "templates/weather-overview.cardtpl",
+      "primaryData": [
+        "/current/temperatureText"
+      ],
+      "secondaryData": [
+        "/current/condition",
+        "/current/uvIndex"
+      ],
+      "optionalData": [
+        "/location/districtName"
+      ]
+    },
+    {
+      "templateId": "WeatherOverviewTemperatureUvSupport@1",
+      "businessId": "WeatherOverview",
+      "capabilityId": "ViewWeather",
+      "description": "天气温度紧凑行；用于 2x2 紧凑内容区域，展示温度、城市和天气，同时要求紫外线字段参与模板匹配。无业务 Action 或无合适天气图标素材时使用。组件形态：temperatureCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "entry": "templates/weather-overview.cardtpl",
+      "primaryData": [
+        "/current/temperatureText"
+      ],
+      "secondaryData": [
+        "/current/condition",
+        "/current/uvIndex"
+      ],
+      "optionalData": [
+        "/location/districtName"
       ]
     }
   ],

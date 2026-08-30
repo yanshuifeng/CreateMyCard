@@ -232,6 +232,68 @@
         "/events/0/eventLocation",
         "/events/0/dtEnd"
       ]
+    },
+    {
+      "templateId": "ScheduleOverviewMeetingSupport@1",
+      "businessId": "CalendarOverview",
+      "capabilityId": "GetCalendarEvents",
+      "description": "首个日程摘要，展示标题和时间，可补充结束时间与地点。 组件形态：meetingCompact。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/schedule-overview.cardtpl",
+      "primaryData": [
+        "/events/0/title",
+        "/events/0/dtStart"
+      ],
+      "secondaryData": [
+        "/events/0/dtEnd"
+      ]
+    },
+    {
+      "templateId": "ScheduleOverviewMeetingLocationSupport@1",
+      "businessId": "CalendarOverview",
+      "capabilityId": "GetCalendarEvents",
+      "description": "首个日程摘要，展示标题和时间，可补充结束时间与地点。 组件形态：meetingCompactLocation。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/schedule-overview.cardtpl",
+      "primaryData": [
+        "/events/0/title",
+        "/events/0/dtStart"
+      ],
+      "secondaryData": [
+        "/events/0/eventLocation",
+        "/events/0/dtEnd"
+      ]
+    },
+    {
+      "templateId": "ScheduleOverviewMeetingSourceSupport@1",
+      "businessId": "CalendarOverview",
+      "capabilityId": "GetCalendarEvents",
+      "description": "首个日程摘要，展示标题和时间，可补充结束时间与地点。 组件形态：meetingCompactSource。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/schedule-overview.cardtpl",
+      "primaryData": [
+        "/events/0/title",
+        "/events/0/dtStart"
+      ],
+      "secondaryData": [
+        "/events/0/dtEnd"
+      ]
+    },
+    {
+      "templateId": "ScheduleOverviewMeetingLocationSourceSupport@1",
+      "businessId": "CalendarOverview",
+      "capabilityId": "GetCalendarEvents",
+      "description": "首个日程摘要，展示标题和时间，可补充结束时间与地点。 组件形态：meetingCompactLocationSource。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
+      "optionalData": [],
+      "entry": "templates/schedule-overview.cardtpl",
+      "primaryData": [
+        "/events/0/title",
+        "/events/0/dtStart"
+      ],
+      "secondaryData": [
+        "/events/0/eventLocation",
+        "/events/0/dtEnd"
+      ]
     }
   ],
   "compatibility": {

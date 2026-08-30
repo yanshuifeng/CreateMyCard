@@ -35,7 +35,19 @@
       "templateId": "CountdownOverviewCompact@1",
       "businessId": "CountdownOverview",
       "capabilityId": "GetCountdownDays",
-      "description": "倒计时紧凑摘要；用于 2x2 双层 Compact 组合。可通过 title 文本属性补充业务标题。",
+      "description": "倒计时紧凑摘要；用于 2x2 紧凑内容区域。可通过 title 文本属性补充业务标题。",
+      "optionalData": [],
+      "entry": "templates/countdown-overview.cardtpl",
+      "primaryData": [
+        "/countdownDays"
+      ],
+      "secondaryData": []
+    },
+    {
+      "templateId": "CountdownOverviewSupport@1",
+      "businessId": "CountdownOverview",
+      "capabilityId": "GetCountdownDays",
+      "description": "倒计时紧凑摘要；用于 2x2 紧凑内容区域。可通过 title 文本属性补充业务标题。 Support 形态用于 2x2 双业务组合，可在模板内部按需绑定已选事件。",
       "optionalData": [],
       "entry": "templates/countdown-overview.cardtpl",
       "primaryData": [

@@ -619,15 +619,18 @@ def _composition_rules(ux_layout_root: bool) -> tuple[str, ...]:
             "布局调用可省略配置；需要覆盖默认重排时，"
             "只能把 Contract 声明的一个闭合配置对象"
             "放在第一个 child 前。布局的 businessChildren 数量不含 Action；"
-            "所有 Action 必须是布局根的连续末尾直接 children，"
-            "禁止放进 Column/Row/Stack/List/Template；整卡最多两个 Action。",
+            "除 TwoSupportLayout 外，所有 Action 必须是布局根的连续末尾直接 children，"
+            "禁止放进 Column/Row/Stack/List/业务 Template；整卡最多两个 Action。"
+            "TwoSupportLayout 禁止 Action child，批准事件只能各一次写入 Support 业务"
+            "Template 的可选 actionId Prop。",
             "禁止独立整卡 Header。若 cardComposition.businessTitleCandidate 能准确命名"
             "当前业务，"
             "可在业务内容区使用；若局部 Template 或事实已表达则省略，"
             "禁止从 request 截取标题。",
-            "Action 类型由业务模板后缀决定：Compact/Hero/WideHero 使用 "
-            'Template("PillAction@1", props)，Full/WideFull 不允许 Action。'
-            "Action 与业务组件解耦，不得根据组件改写、丢弃或重新归属 eventId；"
+            "Action 类型由业务模板后缀和布局共同决定：Compact/Hero/WideHero 使用 "
+            'Template("PillAction@1", props)，Full 仅在 FullIconActionLayout 中使用 '
+            'Template("IconAction@1", props)，WideFull 不允许 Action；Support 仅使用内部 '
+            "actionId Prop。Action 不得被改写、丢弃或重复；Support 内部事件需按语义归属业务；"
             "禁止直接调用 PillAction/IconAction/ActionTile、标准 Button 和事件对象。",
         )
     return (
@@ -653,6 +656,8 @@ def _ux_layout_action_rule(contract: HybridBodyContract) -> str:
         + "；按所选布局的 Action 数量范围选择且不得重复 actionId；"
         "PillAction@1 的 actionId/label 必须来自同一候选，icon 可从 "
         "actionIconCandidates 选择；IconAction@1 必须填写批准的 actionId/icon。"
+        "TwoSupportLayout 不生成 Action child，批准 actionId 必须各一次写入语义匹配的 "
+        "Support Template；"
         "事件由服务端可信 Lowering 注入，禁止输出 call/args/onClick。"
     )
 

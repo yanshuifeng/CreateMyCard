@@ -53,8 +53,9 @@ _LAYOUT_COMPONENTS = frozenset(
     {
         "SingleFocusLayout",
         "HeroActionLayout",
+        "FullIconActionLayout",
         "CompactTwoActionLayout",
-        "TwoCompactLayout",
+        "TwoSupportLayout",
         "WideSingleFocusLayout",
     }
 )
@@ -89,6 +90,7 @@ _MAX_INDEXED_TEMPLATE_CHILDREN = 256
 _PROVIDER_TEMPLATE_LAYOUT_KINDS = (
     "WideHero",
     "WideFull",
+    "Support",
     "Compact",
     "Hero",
     "Full",

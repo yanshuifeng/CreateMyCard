@@ -29,7 +29,6 @@ from services.template_generation.engine.advanced.content_selectors import (
     activity_overview_variants,
     advanced_component_data_admission_is_relaxed,
     approved_schedule_focus_action_ids,
-    bluetooth_device_overview_template_focus,
     extract_activity_overview_facts,
     extract_app_usage_overview_facts,
     extract_battery_overview_facts,
@@ -395,18 +394,22 @@ def compile_ux_layout_card(
         provider_binding_roots=_provider_binding_roots(card_spec),
     )
     _validate_required_template_groups(state, contract)
+    layout_id = _parsed_layout_template_id(composition, registry)
     embedded_action_count = sum(
         _parsed_ux_action_component(child) is not None for child in composition.children
     )
-    if len(state.action_occurrences) != embedded_action_count:
+    if layout_id != "TwoSupportLayout" and len(state.action_occurrences) != embedded_action_count:
         raise TerselConversionError(
             "UX Layout Actions must use the dedicated Action nodes."
         )
     if any(action_id not in contract.content_action_ids for action_id in state.action_occurrences):
         raise TerselConversionError("UX Layout used an unapproved Action.")
     actual_actions = Counter(state.action_occurrences)
-    if any(count != 1 for count in actual_actions.values()):
-        raise TerselConversionError("UX Layout cannot repeat the same Action.")
+    expected_actions = Counter({action_id: 1 for action_id in contract.content_action_ids})
+    if actual_actions != expected_actions:
+        raise TerselConversionError(
+            "UX Layout Actions must consume each selected Action exactly once."
+        )
     expanded = _append_missing_required_literals_to_ux_layout(expanded, contract)
     expanded = _inject_ux_business_title(expanded, business_title, contract)
     expanded = _strip_2x2_composite_headers(expanded, size=task_spec.size)
@@ -1053,53 +1056,58 @@ def _validate_provider_template_state(
                     "Bluetooth Provider Template variant does not match the trusted case status."
                 )
             return
+        has_left = facts.left_battery_level is not None
+        has_right = facts.right_battery_level is not None
+        has_case = facts.case_battery_level is not None
+        if variant_name == "earbudsSupport":
+            if not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
+            return
         if facts.is_connected is None or facts.earphone_name is None:
             raise TerselConversionError(
                 "Bluetooth Provider Template has no trusted earphone identity."
             )
         if variant_name == "hero":
             return
-        disconnected_variant = variant_name.startswith("disconnected")
-        if disconnected_variant == facts.is_connected:
-            raise TerselConversionError(
-                "Bluetooth Provider Template variant does not match the trusted connection state."
-            )
-        if "BluetoothDeviceOverview" not in business_names:
+        if variant_name == "earbudPairCompact":
+            if not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
+            return
+        if variant_name == "earbudPairFull":
+            if not has_case or not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
             return
         paired_with_phone = business_names == {
             "BatteryOverview",
             "BluetoothDeviceOverview",
         }
-        if not facts.is_connected:
-            expected = "disconnectedPhoneCompact" if paired_with_phone else "disconnectedFull"
-        elif paired_with_phone:
-            expected = (
-                "earbudsPhoneCompact"
-                if task_spec.size == "2x2"
-                else "earbudsPhoneWideFull"
-            )
-        elif task_spec.size == "2x4":
-            expected = "earbudsDynamicWideFull"
-        elif bluetooth_device_overview_template_focus(task_spec.userQuery) == "connection":
-            expected = "connectionFull"
-        elif bluetooth_device_overview_template_focus(task_spec.userQuery) == "case":
-            expected = "caseFull"
-        elif facts.left_battery_level is not None and facts.right_battery_level is not None:
-            expected = (
-                "pairVisualFull"
-                if facts.case_battery_level is not None
-                else "earbudPairFull"
-            )
-        elif facts.left_battery_level is not None:
-            expected = "leftEarbudCompact"
-        elif facts.right_battery_level is not None:
-            expected = "rightEarbudCompact"
-        else:
-            expected = "caseFull"
-        if variant_name != expected:
+        phone_variants = {
+            "earbudsPhoneWideFull",
+            "completePhoneWideFull",
+        }
+        standalone_variants = {
+            "earbudsDynamicWideFull",
+            "completeWideFull",
+        }
+        if variant_name in phone_variants and not paired_with_phone:
             raise TerselConversionError(
-                "Bluetooth Provider Template variant does not match the trusted data shape."
+                "Bluetooth Provider Template variant does not match the phone-earphone layout."
             )
+        if variant_name in standalone_variants and paired_with_phone:
+            raise TerselConversionError(
+                "Bluetooth Provider Template variant does not match the phone-earphone layout."
+            )
+        if variant_name in phone_variants | standalone_variants:
+            return
+        raise TerselConversionError(
+            "Bluetooth Provider Template variant does not match the trusted data shape."
+        )
 
 
 def _expand_ux_action_call(
@@ -4350,7 +4358,7 @@ def _instantiate_blueprint(
     node: TemplateNode,
     params: dict[str, Any],
     bindings: dict[str, str] | None = None,
-    theme_values: dict[str, str] | None = None,
+    theme_values: dict[str, object] | None = None,
     *,
     spread_children: tuple[Nested2Node, ...] = (),
 ) -> Nested2Node:
@@ -4396,7 +4404,7 @@ def _instantiate_blueprint_children(
     children: tuple[TemplateNode, ...],
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
     *,
     spread_children: tuple[Nested2Node, ...] = (),
 ) -> tuple[Nested2Node, ...]:
@@ -4502,7 +4510,7 @@ def _template_value(
     value: TemplateValue,
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
 ) -> Any:
     if value.kind == "literal":
         return value.value
@@ -4510,6 +4518,8 @@ def _template_value(
         if value.name not in params:
             raise TerselConversionError(f"Template parameter is missing: {value.name}")
         return params[value.name]
+    if value.kind == "optional-parameter":
+        return params.get(value.name)
     if value.kind == "binding":
         if value.name not in bindings:
             raise TerselConversionError(f"Template binding is missing: {value.name}")
@@ -4525,9 +4535,14 @@ def _template_value(
     if value.kind == "expression":
         return _provider_runtime_expression(value, bindings)
     if value.kind == "event-action":
-        if len(value.items) != 1 or value.items[0].kind != "parameter":
+        if len(value.items) != 1:
             raise TerselConversionError("Template EventAction is invalid.")
-        action_id = _template_value(value.items[0], params, bindings, theme_values)
+        parameter = value.items[0]
+        if parameter.kind not in {"parameter", "optional-parameter"}:
+            raise TerselConversionError("Template EventAction is invalid.")
+        action_id = _template_value(parameter, params, bindings, theme_values)
+        if action_id is None and parameter.kind == "optional-parameter":
+            return None
         if not isinstance(action_id, str):
             raise TerselConversionError("Template EventAction ID is invalid.")
         return [{"call": "sendToAssistant", "args": {"eventName": action_id}}]
@@ -4535,17 +4550,20 @@ def _template_value(
         return [
             _template_value(item, params, bindings, theme_values) for item in value.items
         ]
-    return {
-        key: _template_value(item, params, bindings, theme_values)
-        for key, item in value.properties.items()
-    }
+    properties: dict[str, Any] = {}
+    for key, item in value.properties.items():
+        resolved = _template_value(item, params, bindings, theme_values)
+        if item.kind == "event-action" and resolved is None:
+            continue
+        properties[key] = resolved
+    return properties
 
 
 def _instantiate_interpolated_text(
     node: TemplateNode,
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
 ) -> Nested2Node:
     if node.children:
         raise TerselConversionError("Template interpolation Text cannot contain children.")
@@ -5678,14 +5696,13 @@ def _contains_ux_business_component(
 
 
 _PROVIDER_TEMPLATE_DIRECT_VARIANTS = {
-    "DateOverview@1": {"compact": "compactDate", "full": "dateHero"},
     "ScheduleOverview@1": {
-        "nextEventFull": "nextEvent",
+        "nextEventHero": "nextEvent",
+        "reminderHero": "nextEvent",
+        "timezoneFull": "nextEvent",
+        "dateFull": "nextEvent",
+        "datedMeetingHero": "nextEvent",
         "nextEventLocationFull": "nextEvent",
-        "meetingCompact": "meetingCompact",
-        "meetingLocationCompact": "meetingCompact",
-        "meetingSourceCompact": "meetingCompact",
-        "meetingLocationSourceCompact": "meetingCompact",
         "meetingWideFull": "meetingExpanded",
         "meetingSourceWideFull": "meetingExpanded",
     },
@@ -5741,19 +5758,14 @@ _PROVIDER_TEMPLATE_DIRECT_VARIANTS = {
         "scheduleDetailedStatusWideFull": "schedule",
     },
     "BluetoothDeviceOverview@1": {
-        "connectionFull": "earbuds",
-        "disconnectedFull": "earbuds",
-        "disconnectedPhoneCompact": "earbuds",
-        "caseFull": "earbuds",
-        "earbudsDynamicWideFull": "earbuds",
-        "leftEarbudCompact": "earbuds",
-        "rightEarbudCompact": "earbuds",
-        "earbudPairFull": "earbuds",
-        "pairVisualFull": "earbuds",
-        "completeWideFull": "earbuds",
-        "earbudsPhoneCompact": "earbuds",
+        "hero": "earbuds",
+        "caseStatusCompact": "earbuds",
         "earbudsPhoneWideFull": "earbuds",
-        "earbudPairPhoneCompact": "earbuds",
+        "earbudsDynamicWideFull": "earbuds",
+        "earbudsSupport": "earbuds",
+        "earbudPairFull": "earbuds",
+        "completeWideFull": "earbuds",
+        "earbudPairCompact": "earbuds",
         "completePhoneWideFull": "earbuds",
     },
 }
@@ -5941,19 +5953,28 @@ def _validate_provider_template_layout_action_requirements(
         for child in action_children
         if (action_name := _parsed_ux_action_component(child)) is not None
     )
-    if len(layout_kinds) == 2 and set(layout_kinds) == {"Compact"} and not action_names:
-        if layout_id != "TwoCompactLayout":
+    if len(layout_kinds) == 2 and set(layout_kinds) == {"Support"} and not action_names:
+        if layout_id != "TwoSupportLayout":
             raise TerselConversionError(
-                "Two Compact Provider Templates require TwoCompactLayout."
+                "Two Support Provider Templates require TwoSupportLayout."
             )
         return
     if len(layout_kinds) != 1:
         raise TerselConversionError("Provider Template layout combination is invalid.")
     layout_kind = layout_kinds[0]
+    if layout_kind == "Full":
+        valid_full_combinations = {
+            ("SingleFocusLayout", ()),
+            ("FullIconActionLayout", ("IconAction",)),
+        }
+        if (layout_id, action_names) not in valid_full_combinations:
+            raise TerselConversionError(
+                f"Full Provider Template Action combination is invalid: {action_names}."
+            )
+        return
     expected_actions = {
         "Compact": ("PillAction", "PillAction"),
         "Hero": ("PillAction",),
-        "Full": (),
         "WideHero": ("PillAction",),
         "WideFull": (),
     }[layout_kind]
@@ -5964,7 +5985,6 @@ def _validate_provider_template_layout_action_requirements(
     expected_layout_id = {
         "Compact": "CompactTwoActionLayout",
         "Hero": "HeroActionLayout",
-        "Full": "SingleFocusLayout",
         "WideHero": "WideSingleFocusLayout",
         "WideFull": "WideSingleFocusLayout",
     }[layout_kind]

@@ -35,8 +35,6 @@ OUTPUT_SCHEMA_VERSION = "provider-template-gallery-output/2"
 DEFAULT_APP_VERSION = "11.7.5.205"
 DEFAULT_ROM_VERSION = "6.0"
 DEFAULT_BUNDLE_NAME = "com.huawei.genui.evaluation"
-MULTI_BUSINESS_UNSUPPORTED_ERROR = "TEMPLATE_SEARCH_MULTI_BUSINESS_UNSUPPORTED"
-MULTI_BUSINESS_UNSUPPORTED_REASON = "模板 Search 暂不支持多业务组合"
 
 _TEMPLATE_GENERATION_ROOT = Path(__file__).resolve().parents[1]
 _PROVIDER_ROOT = _TEMPLATE_GENERATION_ROOT / "resources" / "source" / "providers"
@@ -149,35 +147,14 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.calendar_fill",
         "asset.icon_meeting",
     ),
-    "ScheduleOverviewNextEventFull": (
-        "asset.calendar_fill",
+    "ScheduleOverviewDateFull": (
+        "asset.clock",
+        "asset.location_north_up_right_fill",
     ),
     "ScheduleOverviewNextEventLocationFull": (
         "asset.calendar_fill",
         "asset.clock",
         "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
         "asset.icon_meeting",
     ),
     "ScheduleOverviewMeetingSourceWideFull": (
@@ -192,6 +169,17 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.location_north_up_right_fill",
         "asset.icon_meeting",
     ),
+    "BluetoothDeviceOverviewCaseStatusCompact": (
+        "asset.earphone_case_16644",
+    ),
+    "BluetoothDeviceOverviewEarbudsSupport": (
+        "asset.icon_earphone",
+    ),
+    "BluetoothDeviceOverviewEarbudPair": (
+        "asset.earphone_case_16644",
+        "asset.l_circle_fill",
+        "asset.r_circle_fill",
+    ),
 }
 
 _ASSET_SEARCH_TERMS_BY_TEMPLATE_PREFIX = {
@@ -204,17 +192,17 @@ _BATTERY_FACT_FALLBACK_EXEMPT_TEMPLATE_IDS = frozenset(
     {"BatteryOverviewHealthLevelHero@1"}
 )
 
-_COMPACT_PARTNER_PRIORITY = (
-    "AppUsageOverviewCompact@1",
-    "ActivityOverviewCompact@1",
-    "ResourceUsageOverviewCompact@1",
-    "WeatherOverviewCompact@1",
-    "BatteryOverviewNormalWeatherCompact@1",
+_SUPPORT_PARTNER_PRIORITY = (
+    "AppUsageOverviewSupport@1",
+    "ActivityOverviewSupport@1",
+    "ResourceUsageOverviewSupport@1",
+    "WeatherOverviewTemperatureSupport@1",
+    "BatteryOverviewNormalWeatherSupport@1",
 )
 
-_CALENDAR_COMPACT_PARTNER_PRIORITY = (
-    "WeatherOverviewCompact@1",
-    *_COMPACT_PARTNER_PRIORITY,
+_CALENDAR_SUPPORT_PARTNER_PRIORITY = (
+    "WeatherOverviewTemperatureSupport@1",
+    *_SUPPORT_PARTNER_PRIORITY,
 )
 
 
@@ -361,7 +349,15 @@ def _ordered_unique(values: list[str]) -> tuple[str, ...]:
 
 def _template_suffix(template_id: str) -> str:
     local_id = template_id.split("@", maxsplit=1)[0]
-    for suffix in ("WideHero", "WideFull", "Compact", "Hero", "Full", "Compat"):
+    for suffix in (
+        "WideHero",
+        "WideFull",
+        "Support",
+        "Compact",
+        "Hero",
+        "Full",
+        "Compat",
+    ):
         if local_id.endswith(suffix):
             return suffix
     return ""
@@ -503,7 +499,7 @@ def _data_binding(
     }
 
 
-def _compact_partners(
+def _support_partners(
     definitions: list[BusinessDefinition],
     available_capability_ids: set[str],
 ) -> tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...]:
@@ -514,7 +510,7 @@ def _compact_partners(
             continue
         if definition.provider_id in controls.disabled_provider_ids:
             continue
-        for template in _templates_for_suffix(definition, "Compact"):
+        for template in _templates_for_suffix(definition, "Support"):
             if template.template_id not in controls.disabled_template_ids:
                 partners.append((definition, template))
     return tuple(partners)
@@ -570,18 +566,18 @@ def _asset_ids_matching_terms(
 def _partner_for_template(
     definition: BusinessDefinition,
     target_template: ProviderTemplateDefinition | None,
-    compact_partners: tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...],
+    support_partners: tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...],
 ) -> tuple[BusinessDefinition, ProviderTemplateDefinition]:
     candidates = tuple(
-        item for item in compact_partners if item[0].provider_id != definition.provider_id
+        item for item in support_partners if item[0].provider_id != definition.provider_id
     )
     if not candidates:
-        raise ValueError(f"business {definition.business_id} has no cross-provider Compact partner")
+        raise ValueError(f"business {definition.business_id} has no cross-provider Support partner")
     by_template_id = {item[1].template_id: item for item in candidates}
     priority = (
-        _CALENDAR_COMPACT_PARTNER_PRIORITY
+        _CALENDAR_SUPPORT_PARTNER_PRIORITY
         if definition.business_id == "CalendarOverview"
-        else _COMPACT_PARTNER_PRIORITY
+        else _SUPPORT_PARTNER_PRIORITY
     )
     for template_id in priority:
         if template_id in by_template_id:
@@ -653,8 +649,8 @@ def _request_envelope(
     if scenario_id == "two-contents":
         data_bindings.append(_data_binding(partner, partner_template))
         user_query = (
-            f"生成一个2×2组合卡片，第一块紧凑内容按“{template_description}”展示；"
-            f"第二块紧凑内容按“{partner_template.description or partner_description}”展示。"
+            f"生成一个2×2组合卡片，第一块 Support 内容按“{template_description}”展示；"
+            f"第二块 Support 内容按“{partner_template.description or partner_description}”展示。"
             "两块内容同等重要，不显示操作按钮。"
         )
     elif scenario_id == "single-two-actions":
@@ -743,7 +739,7 @@ def _scenario_metadata(scenario_id: str) -> tuple[str, str, str]:
             "Compact + 2 × PillAction",
             "Compact",
         ),
-        "two-contents": ("2 个内容", "2 × Compact", "Compact"),
+        "two-contents": ("2 个内容", "2 × Support", "Support"),
         "single-one-action": (
             "单内容 + 1 个 Action",
             "Hero + PillAction",
@@ -770,7 +766,7 @@ def _missing_reason(
     if target_template is None:
         return f"缺失 {suffix} 模板"
     if scenario_id == "two-contents" and partner_template is None:
-        return "缺失可配对的 Compact 模板"
+        return "缺失可配对的 Support 模板"
     if provider_disabled:
         return "Provider 当前已禁用"
     if not capability_available:
@@ -790,7 +786,7 @@ def write_gallery_input_dataset(
     definitions = _load_business_definitions(provider_root)
     data_capability_ids = _load_data_capability_ids(capability_root)
     asset_capabilities = _load_asset_capabilities(capability_root)
-    compact_partners = _compact_partners(definitions, data_capability_ids)
+    support_partners = _support_partners(definitions, data_capability_ids)
     controls = load_template_controls()
     event_capabilities = _load_event_capabilities(capability_root)
     _clear_generated_gallery_files(output_root)
@@ -819,7 +815,7 @@ def write_gallery_input_dataset(
                     partner, partner_template = _partner_for_template(
                         definition,
                         target_template,
-                        compact_partners,
+                        support_partners,
                     )
                     target_name = (
                         target_template.template_id.split("@", maxsplit=1)[0]
@@ -1052,13 +1048,6 @@ class ProviderGalleryBatchRunner:
         }
 
         async def execute_case(case: GalleryInputCase) -> dict[str, Any]:
-            if case.scenarioId == "two-contents":
-                return self._base_result(
-                    case,
-                    "failed",
-                    MULTI_BUSINESS_UNSUPPORTED_REASON,
-                    error_code=MULTI_BUSINESS_UNSUPPORTED_ERROR,
-                )
             if case.missingReason:
                 return self._base_result(case, "missing", case.missingReason)
             if dry_run:

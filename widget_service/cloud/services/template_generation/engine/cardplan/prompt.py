@@ -183,16 +183,7 @@ def build_hybrid_prompt(
         for fact in facts
         if isinstance(fact.value, (int, float)) and not isinstance(fact.value, bool)
     )
-    actions = tuple(
-        ActionBinding(
-            action_id=event.id or "",
-            display_label=_action_label(event),
-            call=event.call,
-            args=event.args,
-        )
-        for event in task_spec.eventCandidates
-        if event.id
-    )
+    actions = _build_action_bindings(task_spec)
     if getattr(ui_brief, "action_placement", "auto") == "none":
         actions = ()
     selected_definitions = [registry.require_template(wire_id) for wire_id in requested]
@@ -1154,6 +1145,42 @@ def _action_label(event: Any) -> str:
     if isinstance(display_label, str) and display_label.strip():
         return display_label.strip()
     return _ACTION_LABELS.get(getattr(event, "id", "") or "", "打开详情")
+
+
+def _build_action_bindings(task_spec: TaskSpec) -> tuple[ActionBinding, ...]:
+    event_counts: dict[str, int] = {}
+    for event in task_spec.eventCandidates:
+        if not event.id:
+            continue
+        event_counts[event.id] = event_counts.get(event.id, 0) + 1
+
+    event_occurrences: dict[str, int] = {}
+    actions: list[ActionBinding] = []
+    reserved_action_ids = set(event_counts)
+    for event in task_spec.eventCandidates:
+        event_id = event.id
+        if not event_id:
+            continue
+        occurrence = event_occurrences.get(event_id, 0) + 1
+        event_occurrences[event_id] = occurrence
+        action_id = event_id
+        event_count = event_counts.get(event_id)
+        if event_count is None:
+            raise ValueError("Event count is unavailable")
+        if event_count > 1:
+            action_id = f"{event_id}#{occurrence}"
+            if action_id in reserved_action_ids:
+                raise ValueError("Generated Action instance ID collides with an event ID")
+        actions.append(
+            ActionBinding(
+                action_id=action_id,
+                event_id=event_id,
+                display_label=_action_label(event),
+                call=event.call,
+                args=event.args,
+            )
+        )
+    return tuple(actions)
 
 
 def _asset_semantic_tags(asset: dict[str, Any]) -> tuple[str, ...]:

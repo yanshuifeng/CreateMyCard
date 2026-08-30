@@ -260,7 +260,7 @@ def compile_hybrid_card(
         registry,
     )
     content_height = _estimate_height(content)
-    root = _compile_card_shell(card_params, content, task_spec, contract, registry)
+    root = _compile_card_shell(card_params, content, contract, registry)
     root = _apply_theme_content_color(root, contract, registry)
     card_action = card_params.get("action")
     if isinstance(card_action, dict):
@@ -284,7 +284,7 @@ def compile_hybrid_card(
     space_constrained = content_height > body_budget
     if space_constrained:
         content = _constrain_content_height(content, body_budget)
-        root = _compile_card_shell(card_params, content, task_spec, contract, registry)
+        root = _compile_card_shell(card_params, content, contract, registry)
         root = _apply_theme_content_color(root, contract, registry)
     root = _apply_template_background(
         root,
@@ -682,7 +682,10 @@ def _validate_card_params(
     if action["id"] in contract.content_action_ids:
         raise TerselConversionError("content Action cannot be used by card@1.")
     event_ids = {item.id for item in task_spec.eventCandidates}
-    if action["id"] not in event_ids:
+    selected_binding = next(
+        item for item in contract.action_bindings if item.action_id == action["id"]
+    )
+    if selected_binding.event_id not in event_ids:
         raise TerselConversionError("card@1 action is not in TaskSpec.")
 
 
@@ -3545,8 +3548,13 @@ def _expand_schedule_overview_call(
         variant = "meetingCompact"
     if variant == "focusContext":
         approved = set(approved_schedule_focus_action_ids(task_spec))
+        content_event_ids = {
+            binding.event_id
+            for binding in contract.action_bindings
+            if binding.action_id in contract.content_action_ids
+        }
         focus_is_closed = schedule_query_requests_focus(task_spec.userQuery) and bool(
-            approved & set(contract.content_action_ids)
+            approved & content_event_ids
         )
         if not focus_is_closed:
             raise TerselConversionError(
@@ -4864,7 +4872,6 @@ def _template_action_placeholder(value: dict[str, Any]) -> str | None:
 def _compile_card_shell(
     params: dict[str, Any],
     content: Nested2Node,
-    task_spec: TaskSpec,
     contract: HybridBodyContract,
     registry: CardPlanRegistry,
 ) -> Nested2Node:
@@ -4932,7 +4939,6 @@ def _compile_card_shell(
     action = params.get("action")
     if isinstance(action, dict):
         binding = next(item for item in contract.action_bindings if item.action_id == action["id"])
-        event = next(item for item in task_spec.eventCandidates if item.id == binding.action_id)
         action_style = theme.action_style
         action_height = (
             registry.ux_tokens["pillActionHeight"]
@@ -4948,7 +4954,7 @@ def _compile_card_shell(
                 action_style.background_color if action_style is not None else "#24FFFFFF"
             ),
             "alignContent": "center",
-            "onClick": [{"call": event.call, "args": event.args}],
+            "onClick": [{"call": binding.call, "args": binding.args}],
         }
         label_values: tuple[Any, ...] = (binding.display_label, "compact-action")
         if action_style is not None:
@@ -5122,15 +5128,20 @@ def _deduplicate_visible_text(node: Nested2Node, task_spec: TaskSpec) -> Nested2
         current: Nested2Node,
         *,
         inside_advanced_component: bool = False,
+        inside_action: bool = False,
     ) -> Nested2Node | None:
         is_advanced_component = inside_advanced_component or any(
             isinstance(value, dict) and isinstance(value.get("_advancedComponent"), str)
             for value in current.values
         )
+        is_action = inside_action or any(
+            isinstance(value, dict) and isinstance(value.get("_boundTemplateAction"), str)
+            for value in current.values
+        )
         is_text = current.component_type == "Text" and bool(current.values)
         has_text_value = is_text and isinstance(current.values[0], str)
         has_visible_text = has_text_value and bool(current.values[0].strip())
-        if not is_advanced_component and has_visible_text:
+        if not is_advanced_component and not is_action and has_visible_text:
             literal = current.values[0]
             limit = max(1, allowed[literal])
             seen[literal] += 1
@@ -5143,6 +5154,7 @@ def _deduplicate_visible_text(node: Nested2Node, task_spec: TaskSpec) -> Nested2
                 child := visit(
                     item,
                     inside_advanced_component=is_advanced_component,
+                    inside_action=is_action,
                 )
             )
             is not None

@@ -5436,6 +5436,113 @@ async def test_calendar_event_entity_id_stays_out_of_second_layer_and_visible_te
 
 
 @pytest.mark.asyncio
+async def test_duplicate_calendar_pill_actions_keep_independent_event_bindings():
+    event_id = "event.viewCalendarEvent"
+    event_actions = []
+    for index in range(2):
+        event_actions.append(
+            EventAction(
+                id=event_id,
+                displayLabel="查看日程",
+                call="clickToIntent",
+                args={
+                    "intentName": "ViewCalendarEvent",
+                    "params": {
+                        "entityId": f"{{{{ ${{/data/calendar/events/{index}/entityId}} }}}}",
+                    },
+                },
+            )
+        )
+    task_spec = TaskSpec(
+        userQuery="显示两场日程，并支持分别打开详情",
+        size="2x2",
+        eventCandidates=event_actions,
+        dataModelSchema={
+            "data": {
+                "calendar": {
+                    "events": [
+                        {
+                            "title": _provider_field("项目例会", "string"),
+                            "dtStart": _provider_field("14:00", "string"),
+                            "dtEnd": _provider_field("15:00", "string"),
+                            "entityId": _provider_field("example-event-001", "string"),
+                        },
+                        {
+                            "title": _provider_field("评审会议", "string"),
+                            "dtStart": _provider_field("16:00", "string"),
+                            "dtEnd": _provider_field("17:00", "string"),
+                            "entityId": _provider_field("example-event-002", "string"),
+                        },
+                    ]
+                }
+            }
+        },
+    )
+    binding = CandidateDataBinding(
+        capabilityId="GetCalendarEvents",
+        writeResultTo="/data/calendar",
+        candidateOutputFields=[
+            "/events/0/title",
+            "/events/0/dtStart",
+            "/events/0/dtEnd",
+        ],
+    )
+    card_spec = {
+        "title": "日程安排",
+        "description": "两场日程",
+        "suggestSize": "2x2",
+        "dataBindings": [
+            {
+                "capabilityId": "GetCalendarEvents",
+                "writeResultTo": "/data/calendar",
+            }
+        ],
+    }
+    model = _FixedTemplateModel(
+        theme_id="meeting-paper-neutral",
+        component_id="CalendarOverview",
+        available_template_ids=("ScheduleOverviewMeetingCompact@1",),
+        capability_id="GetCalendarEvents",
+        required_fields=(
+            "/events/0/title",
+            "/events/0/dtStart",
+            "/events/0/dtEnd",
+        ),
+        action_id=event_id,
+        body=(
+            'Template("CompactTwoActionLayout@1",{},'
+            'Template("ScheduleOverviewMeetingCompact@1",{}),'
+            'Template("PillAction@1",{"actionId":"event.viewCalendarEvent#1",'
+            '"label":"查看日程"}),'
+            'Template("PillAction@1",{"actionId":"event.viewCalendarEvent#2",'
+            '"label":"查看日程"}));'
+        ),
+    )
+
+    output = await generate_template_a2ui(task_spec, card_spec, (binding,), model)
+
+    assert model.second_layer_prompt is not None
+    second_layer_prompt = json.dumps(model.second_layer_prompt, ensure_ascii=False)
+    assert "event.viewCalendarEvent#1" in second_layer_prompt
+    assert "event.viewCalendarEvent#2" in second_layer_prompt
+    messages = [json.loads(line) for line in output.a2ui.splitlines()]
+    components = messages[1]["updateComponents"]["components"]
+    action_components = []
+    for component in components:
+        if component.get("onClick"):
+            action_components.append(component)
+    bound_entity_ids = set()
+    for component in action_components:
+        entity_id = component["onClick"][0]["args"]["params"]["entityId"]
+        bound_entity_ids.add(entity_id)
+    assert bound_entity_ids == {
+        "{{ ${/data/calendar/events/0/entityId} }}",
+        "{{ ${/data/calendar/events/1/entityId} }}",
+    }
+    assert "event.viewCalendarEvent#" not in output.a2ui
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "action_call",
     [

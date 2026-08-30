@@ -28,6 +28,7 @@ class HybridLimits(StrictModel):
 
 class ActionBinding(StrictModel):
     action_id: str
+    event_id: str = Field(exclude=True)
     display_label: str
     call: str
     args: dict[str, Any]

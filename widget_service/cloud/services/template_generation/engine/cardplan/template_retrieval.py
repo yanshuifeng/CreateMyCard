@@ -138,6 +138,8 @@ def retrieve_template_variants(
     _require_supported_search_size(task_spec)
     registry.require_theme(query.theme_id)
     _validate_selected_actions(query, task_spec)
+    action_count = _selected_action_count(query, task_spec)
+    preferred_layout_suffix = {1: "Hero", 2: "Compact"}.get(action_count)
     if not query.required_output_fields_by_capability:
         raise TemplateRetrievalMiss("template retrieval has no requested capability")
     candidate_ids = {binding.capabilityId for binding in coverage_bindings}
@@ -161,6 +163,7 @@ def retrieve_template_variants(
             task_spec,
             card_spec,
             preferred_template_ids,
+            preferred_layout_suffix,
         )
         if not component_templates:
             raise TemplateRetrievalMiss(
@@ -180,7 +183,7 @@ def retrieve_template_variants(
     if task_spec.size == "2x2":
         candidates, required_groups = _apply_2x2_combination_policy(
             candidates,
-            query.action_ids,
+            action_count,
             required_groups,
         )
     else:
@@ -213,12 +216,11 @@ def _require_supported_search_size(task_spec: TaskSpec) -> None:
 
 def _apply_2x2_combination_policy(
     candidates: tuple[TemplateComponentCandidate, ...],
-    action_ids: tuple[str, ...],
+    action_count: int,
     required_groups: list[tuple[str, ...]],
 ) -> tuple[tuple[TemplateComponentCandidate, ...], list[tuple[str, ...]]]:
     """Restrict 2x2 candidates to the business and Action capacity contract."""
     component_count = len(candidates)
-    action_count = len(action_ids)
     if component_count >= 3:
         raise TemplateRetrievalMiss("2x2 template Search supports at most two businesses")
     if action_count >= 3:
@@ -251,6 +253,15 @@ def _apply_2x2_combination_policy(
     for candidate in filtered_candidates:
         _require_single_template_coverage(candidate, filtered_groups, layout_suffix)
     return filtered_candidates, filtered_groups
+
+
+def _selected_action_count(query: TemplateRetrievalQuery, task_spec: TaskSpec) -> int:
+    selected_action_ids = set(query.action_ids)
+    count = 0
+    for event in task_spec.eventCandidates:
+        if event.id in selected_action_ids:
+            count += 1
+    return count
 
 
 def _candidate_with_layout_suffix(
@@ -324,6 +335,7 @@ def _component_templates_for_capability(
     task_spec: TaskSpec,
     card_spec: dict[str, Any],
     preferred_template_ids: tuple[str, ...] = (),
+    preferred_layout_suffix: str | None = None,
 ) -> dict[str, dict[str, frozenset[str]]]:
     result: dict[str, dict[str, frozenset[str]]] = {}
     business_ids = {
@@ -355,6 +367,7 @@ def _component_templates_for_capability(
                 registry.enabled_template_ids(group.local_template_ids),
                 query_tokens,
                 preferred_template_ids,
+                preferred_layout_suffix,
             )
     covered_paths: set[str] = set()
     for templates in result.values():
@@ -370,6 +383,7 @@ def _limit_component_templates(
     declared_template_ids: tuple[str, ...],
     query_tokens: frozenset[FieldToken],
     preferred_template_ids: tuple[str, ...] = (),
+    preferred_layout_suffix: str | None = None,
 ) -> dict[str, frozenset[str]]:
     """Keep the upstream candidate bound without dropping field coverage."""
     selected = [
@@ -377,6 +391,23 @@ def _limit_component_templates(
         for template_id in preferred_template_ids
         if template_id in matches
     ]
+    layout_matches: list[str] = []
+    if preferred_layout_suffix is not None:
+        for template_id in declared_template_ids:
+            if template_id not in matches:
+                continue
+            if not _template_has_layout_suffix(template_id, preferred_layout_suffix):
+                continue
+            layout_matches.append(template_id)
+    for token in sorted(query_tokens):
+        template_id = next(
+            (item for item in layout_matches if token.path in matches[item]),
+            None,
+        )
+        if template_id is not None and template_id not in selected:
+            selected.append(template_id)
+    if not query_tokens and layout_matches:
+        selected.append(layout_matches[0])
     for token in sorted(query_tokens):
         template_id = next(
             (

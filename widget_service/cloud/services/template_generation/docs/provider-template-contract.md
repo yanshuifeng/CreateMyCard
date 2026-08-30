@@ -80,6 +80,24 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 节点。
 没有已选事件时省略该 Prop；事件值只能来自第一层已批准候选，并由服务端按原始 `call/args` 可信绑定。
 
+### `2x2` 固定布局组合
+
+模板生成侧的 `2x2` 动作预算最多为一个主动作和一个次动作。Search 和第二层必须按下表
+组合业务模板、布局和动作：
+
+| 业务数 | 已选事件数 | 业务模板 | 布局与动作 |
+| --- | ---: | --- | --- |
+| 1 | 0 | `Full` | `SingleFocusLayout`，不生成 Action |
+| 1 | 1 | `Hero` | `HeroActionLayout` + 1 个 `PillAction` |
+| 1 | 1 | `Full` | 仅存在语义匹配的已批准图标素材时，使用 `FullIconActionLayout` + 1 个 `IconAction` |
+| 1 | 2 | `Compact` | `CompactTwoActionLayout` + 2 个连续的 `PillAction` |
+| 2 | 0～2 | 2 个 `Support` | `TwoSupportLayout`；事件按需绑定在对应 Support 内部，根布局不生成 Action |
+
+Search 只保留能够独立完整覆盖所属业务显式字段的模板候选，不提前在 `Hero` 与
+`Full + IconAction` 之间做最终视觉选择。第二层只能使用 Search 返回的候选、已批准事件和
+已批准素材组成一个完整布局。已选事件必须各消费一次，不得重复、遗漏或改写归属；编译器对模板后缀、
+布局、动作类型、位置和消费次数做确定性校验。
+
 模板 ID 直接表达 UI 形态，不再声明 `Variant`、`allowedParentComponents` 或 `limits`。模板头只定义外部
 `props`；`?` 表示可选，支持 `string`、`asset`、`number`、`integer` 和 `boolean`：
 

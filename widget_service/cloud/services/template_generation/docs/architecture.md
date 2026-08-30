@@ -137,6 +137,8 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
   用户显式字段：双业务只保留 Support；单业务零、一个、两个 Action 分别保留 Full、Hero+Full、Compact。
 - `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 的最终组合由第二层完成。
 - `TwoSupportLayout` 是 `2x2` 双业务的唯一布局，事件绑定在 Support 内部。
+- 布局专用主题不暴露给首层 LLM。双业务候选通过后，服务端按 `TwoSupportLayout` 与两个能力确定性切换
+  到唯一兼容主题；当前为 `2x2-two-support`。找不到或存在多个兼容主题时直接判定模板路线不适用。
 
 结果是 `TemplateRouteSelection`，其 `availableTemplateIds` 仍是二层候选集，不是最终选择。
 
@@ -172,7 +174,8 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
    `EventAction(props?.actionId)`，缺少 `actionId` 时省略 `onClick`。
 6. 将 Theme `rootStyle` 应用到卡片根节点；为未显式着色的内容组件补 `primaryColor`；确定性展开
    CardTpl/Tersel 中的 `$theme(...)`；将 `actionStyle` 的背景色和内容色应用到受信 Action Template，保留
-   模板节点已经显式声明的高度、圆角、字号和字重，然后执行布局 Lowering。
+   模板节点已经显式声明的高度、圆角、字号和字重，然后执行布局 Lowering。`TwoSupportLayout` 额外从
+   布局专用主题读取 `supportContentStyle`，统一设置两个 Support 容器的背景色和圆角。
 7. 仅当实际产物为单业务 `Full` 或 `Hero` 时，按 Theme 三色在模板内部直接展开标准 `Stack` 球体树，
    同时给前景内容根 ID 增加 `__genui_render_component__` 前缀；不猜测或覆写主辅内容色。
 8. 将已经展开的标准组件树序列化为 Tersel，再确定性转换为三段 A2UI。

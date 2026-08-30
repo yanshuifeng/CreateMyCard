@@ -147,35 +147,14 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.calendar_fill",
         "asset.icon_meeting",
     ),
-    "ScheduleOverviewNextEventFull": (
-        "asset.calendar_fill",
+    "ScheduleOverviewDateFull": (
+        "asset.clock",
+        "asset.location_north_up_right_fill",
     ),
     "ScheduleOverviewNextEventLocationFull": (
         "asset.calendar_fill",
         "asset.clock",
         "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
         "asset.icon_meeting",
     ),
     "ScheduleOverviewMeetingSourceWideFull": (
@@ -189,6 +168,17 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.clock",
         "asset.location_north_up_right_fill",
         "asset.icon_meeting",
+    ),
+    "BluetoothDeviceOverviewCaseStatusCompact": (
+        "asset.earphone_case_16644",
+    ),
+    "BluetoothDeviceOverviewEarbudsSupport": (
+        "asset.icon_earphone",
+    ),
+    "BluetoothDeviceOverviewEarbudPair": (
+        "asset.earphone_case_16644",
+        "asset.l_circle_fill",
+        "asset.r_circle_fill",
     ),
 }
 
@@ -206,12 +196,12 @@ _SUPPORT_PARTNER_PRIORITY = (
     "AppUsageOverviewSupport@1",
     "ActivityOverviewSupport@1",
     "ResourceUsageOverviewSupport@1",
-    "WeatherOverviewSupport@1",
+    "WeatherOverviewTemperatureSupport@1",
     "BatteryOverviewNormalWeatherSupport@1",
 )
 
 _CALENDAR_SUPPORT_PARTNER_PRIORITY = (
-    "WeatherOverviewSupport@1",
+    "WeatherOverviewTemperatureSupport@1",
     *_SUPPORT_PARTNER_PRIORITY,
 )
 

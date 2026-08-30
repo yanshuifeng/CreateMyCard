@@ -186,6 +186,7 @@ def test_shared_capability_keeps_each_component_scoped_templates() -> None:
                             "title": _field("项目例会"),
                             "dtStart": _field("14:00"),
                             "dtEnd": _field("15:00"),
+                            "eventLocation": _field("A1 会议室"),
                         }
                     ]
                 }
@@ -195,12 +196,22 @@ def test_shared_capability_keeps_each_component_scoped_templates() -> None:
     binding = CandidateDataBinding(
         capabilityId="GetCalendarEvents",
         writeResultTo="/data/calendar",
-        candidateOutputFields=["/events/0/title", "/events/0/dtStart", "/events/0/dtEnd"],
+        candidateOutputFields=[
+            "/events/0/title",
+            "/events/0/dtStart",
+            "/events/0/dtEnd",
+            "/events/0/eventLocation",
+        ],
     )
     query = TemplateRetrievalQuery(
         themeId="meeting-paper-neutral",
         requiredOutputFieldsByCapability={
-            "GetCalendarEvents": ("/events/0/title", "/events/0/dtStart")
+            "GetCalendarEvents": (
+                "/events/0/title",
+                "/events/0/dtStart",
+                "/events/0/dtEnd",
+                "/events/0/eventLocation",
+            )
         },
     )
 
@@ -218,7 +229,7 @@ def test_shared_capability_keeps_each_component_scoped_templates() -> None:
         },
     )
 
-    assert "ScheduleOverviewNextEventFull@1" in result.allowed_template_ids
+    assert "ScheduleOverviewNextEventLocationFull@1" in result.allowed_template_ids
 
 
 def test_calendar_date_and_schedule_require_one_covering_business_template() -> None:
@@ -314,6 +325,8 @@ def test_first_layer_prompt_includes_task_fields_rules_and_action_candidates() -
     assert payload["taskSpec"] == task.model_dump(mode="json")
     assert payload["providerFirstLayerRules"]
     assert payload["themeFirstLayerRules"]
+    assert "2x2-two-support" not in payload["themes"]
+    assert "2x2-two-support" not in payload["themeFirstLayerRules"]
     assert payload["actionCandidates"] == [
         {"eventId": "event.open.weather", "call": "clickToDeeplink"}
     ]
@@ -340,46 +353,56 @@ def test_search_rejects_2x4_before_prompt_or_retrieval() -> None:
 
 def test_search_keeps_two_data_businesses_as_support_templates() -> None:
     task = _task()
-    task.dataModelSchema["data"]["calendar"] = {
-        "events": [
-            {
-                "title": _field("项目例会"),
-                "dtStart": _field("14:00"),
-                "dtEnd": _field("15:00"),
-            }
-        ]
+    task.dataModelSchema["data"]["systemMem"] = {
+        "usagePercent": _field(65, "number"),
+        "availableMemText": _field("4.2 GB"),
+        "totalMemText": _field("12 GB"),
     }
-    calendar = CandidateDataBinding(
-        capabilityId="GetCalendarEvents",
-        writeResultTo="/data/calendar",
-        candidateOutputFields=["/events/0/title", "/events/0/dtStart"],
+    memory = CandidateDataBinding(
+        capabilityId="GetSystemMemInfo",
+        writeResultTo="/data/systemMem",
+        candidateOutputFields=[
+            "/usagePercent",
+            "/availableMemText",
+            "/totalMemText",
+        ],
     )
     result = retrieve_template_variants(
         TemplateRetrievalQuery(
             themeId="family-weather-care-blue",
             requiredOutputFieldsByCapability={
-                "ViewWeather": ("/current/condition",),
-                "GetCalendarEvents": ("/events/0/title", "/events/0/dtStart"),
+                "ViewWeather": (
+                    "/location/districtName",
+                    "/current/temperatureText",
+                    "/current/condition",
+                    "/current/coldLevel",
+                ),
+                "GetSystemMemInfo": (
+                    "/usagePercent",
+                    "/availableMemText",
+                    "/totalMemText",
+                ),
             },
         ),
         task,
         CardPlanRegistry(),
-        (_binding(), calendar),
+        (_binding(), memory),
         {
             "dataBindings": [
                 {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
                 {
-                    "capabilityId": "GetCalendarEvents",
-                    "writeResultTo": "/data/calendar",
+                    "capabilityId": "GetSystemMemInfo",
+                    "writeResultTo": "/data/systemMem",
                 },
             ]
         },
     )
 
     assert {item.component_id for item in result.component_candidates} == {
-        "CalendarOverview",
+        "ResourceUsageOverview",
         "WeatherOverview",
     }
+    assert result.scope.theme_id == "2x2-two-support"
     assert all(
         template_id.endswith("Support@1")
         for candidate in result.component_candidates
@@ -444,6 +467,7 @@ def test_search_keeps_two_support_businesses_backed_by_one_capability() -> None:
         for candidate in result.component_candidates
         for template_id in candidate.available_template_ids
     )
+    assert result.scope.theme_id == "2x2-two-support"
 
 
 def test_search_allows_one_data_business_with_action() -> None:
@@ -668,7 +692,7 @@ def test_optional_data_is_available_but_not_required_for_second_containment() ->
     assert any(token.path == "/updatedAt" for token in record.field_tokens)
 
 
-def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
+def test_two_business_support_can_cover_battery_soc_and_temperature() -> None:
     task = TaskSpec(
         userQuery="显示天气、电量和手机温度",
         size="2x2",
@@ -681,6 +705,7 @@ def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
                     "current": {
                         "temperatureText": _field("29°C"),
                         "condition": _field("多云"),
+                        "coldLevel": _field("低"),
                     },
                 },
                 "phoneBattery": {
@@ -697,6 +722,7 @@ def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
                 "/current/condition",
                 "/current/temperatureText",
                 "/location/districtName",
+                "/current/coldLevel",
             ),
             "GetPhoneBatteryInfo": ("/batterySOC", "/batteryTemperatureText"),
         },
@@ -709,6 +735,7 @@ def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
                 "/current/condition",
                 "/current/temperatureText",
                 "/location/districtName",
+                "/current/coldLevel",
             ],
         ),
         CandidateDataBinding(
@@ -742,12 +769,13 @@ def test_two_business_compact_can_cover_battery_soc_and_temperature() -> None:
     weather_candidate = next(
         item for item in result.component_candidates if item.component_id == "WeatherOverview"
     )
-    assert "WeatherOverviewTemperatureIconSupport@1" in (
+    assert "WeatherOverviewTemperatureSupport@1" in (
         weather_candidate.available_template_ids
     )
+    assert result.scope.theme_id == "2x2-two-support"
 
 
-def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature() -> None:
+def test_two_business_support_can_cover_weather_uv_and_battery_temperature() -> None:
     task = TaskSpec(
         userQuery="显示天气、电量和手机温度",
         size="2x2",
@@ -760,7 +788,6 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
                     "current": {
                         "temperatureText": _field("29°C"),
                         "condition": _field("多云"),
-                        "alertLevel": _field("无预警"),
                         "uvIndex": _field("弱"),
                     },
                 },
@@ -778,7 +805,6 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
                 "/current/condition",
                 "/current/temperatureText",
                 "/location/districtName",
-                "/current/alertLevel",
                 "/current/uvIndex",
             ),
             "GetPhoneBatteryInfo": ("/batterySOC", "/batteryTemperatureText"),
@@ -792,7 +818,6 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
                 "/current/condition",
                 "/current/temperatureText",
                 "/location/districtName",
-                "/current/alertLevel",
                 "/current/uvIndex",
             ],
         ),
@@ -821,7 +846,7 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
     weather_candidate = next(
         item for item in result.component_candidates if item.component_id == "WeatherOverview"
     )
-    assert "WeatherOverviewTemperatureAlertUvIconSupport@1" in (
+    assert "WeatherOverviewTemperatureUvSupport@1" in (
         weather_candidate.available_template_ids
     )
     battery_candidate = next(
@@ -832,7 +857,7 @@ def test_two_business_compact_can_cover_weather_alert_uv_and_battery_temperature
     )
 
 
-def test_countdown_weather_compact_uses_explicit_weather_fields() -> None:
+def test_countdown_weather_is_rejected_without_countdown_support() -> None:
     task = TaskSpec(
         userQuery="使用2*2规格，做个马拉松赛事倒计时卡片。",
         size="2x2",
@@ -865,39 +890,32 @@ def test_countdown_weather_compact_uses_explicit_weather_fields() -> None:
             ],
         ),
     )
-    result = retrieve_template_variants(
-        TemplateRetrievalQuery(
-            themeId="race-sunrise-action",
-            requiredOutputFieldsByCapability={
-                "GetCountdownDays": ("/countdownDays",),
-                "ViewWeather": (
-                    "/current/temperatureText",
-                    "/current/condition",
-                    "/current/uvIndex",
-                ),
+    with pytest.raises(TemplateRetrievalMiss, match="no provider template|Support"):
+        retrieve_template_variants(
+            TemplateRetrievalQuery(
+                themeId="race-sunrise-action",
+                requiredOutputFieldsByCapability={
+                    "GetCountdownDays": ("/countdownDays",),
+                    "ViewWeather": (
+                        "/current/temperatureText",
+                        "/current/condition",
+                        "/current/uvIndex",
+                    ),
+                },
+            ),
+            task,
+            get_cardplan_registry(),
+            bindings,
+            {
+                "suggestSize": "2x2",
+                "title": "马拉松倒计时",
+                "description": "底部显示赛事当日紫外线强度",
+                "dataBindings": [
+                    {
+                        "capabilityId": "GetCountdownDays",
+                        "writeResultTo": "/data/countdown",
+                    },
+                    {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
+                ],
             },
-        ),
-        task,
-        get_cardplan_registry(),
-        bindings,
-        {
-            "suggestSize": "2x2",
-            "title": "马拉松倒计时",
-            "description": "底部显示赛事当日紫外线强度",
-            "dataBindings": [
-                {"capabilityId": "GetCountdownDays", "writeResultTo": "/data/countdown"},
-                {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
-            ],
-        },
-    )
-
-    assert {item.component_id for item in result.component_candidates} == {
-        "CountdownOverview",
-        "WeatherOverview",
-    }
-    weather_candidate = next(
-        item for item in result.component_candidates if item.component_id == "WeatherOverview"
-    )
-    assert "WeatherOverviewTemperatureUvSupport@1" in (
-        weather_candidate.available_template_ids
-    )
+        )

@@ -10,7 +10,6 @@ from typing import Any
 from app.logger import json_for_log, logger
 from models.generation import TaskSpec
 from services.template_generation.engine.advanced.content_selectors import (
-    bluetooth_device_overview_template_focus,
     extract_battery_overview_facts,
     extract_bluetooth_device_overview_facts,
 )
@@ -1034,36 +1033,28 @@ def _provider_variant_matches_trusted_state(
                 facts.case_battery_level is not None
                 and facts.case_charging_status is not None
             )
+        has_left = facts.left_battery_level is not None
+        has_right = facts.right_battery_level is not None
+        has_case = facts.case_battery_level is not None
+        if variant_name == "earbudsSupport":
+            return has_left and has_right
         if facts.is_connected is None or facts.earphone_name is None:
             return False
         if variant_name == "hero":
             return True
+        if variant_name == "earbudPairCompact":
+            return has_left and has_right
+        if variant_name == "earbudPairFull":
+            return has_case and has_left and has_right
         paired_with_phone = {
             "GetEarphoneInfo",
             "GetPhoneBatteryInfo",
         } <= capabilities
-        if not facts.is_connected:
-            return variant_name == ("disconnectedPhone" if paired_with_phone else "disconnected")
-        if paired_with_phone:
-            expected = "earbudsPhone" if task_spec.size == "2x2" else "earbudsPhoneWide"
-            return variant_name == expected
-        if task_spec.size == "2x4":
-            return variant_name == "earbudsDynamicWide"
-        focus = bluetooth_device_overview_template_focus(task_spec.userQuery)
-        if focus == "connection":
-            return variant_name == "connection"
-        if focus == "case":
-            return variant_name == "earbuds"
-        has_left = facts.left_battery_level is not None
-        has_right = facts.right_battery_level is not None
-        has_case = facts.case_battery_level is not None
-        if has_left and has_right:
-            return variant_name == ("earbudsFull" if has_case else "earbudPair")
-        if has_left:
-            return variant_name == "leftEarbud"
-        if has_right:
-            return variant_name == "rightEarbud"
-        return has_case and variant_name == "earbuds"
+        if variant_name in {"earbudsPhoneWideFull", "completePhoneWideFull"}:
+            return paired_with_phone
+        if variant_name in {"earbudsDynamicWideFull", "completeWideFull"}:
+            return not paired_with_phone
+        return False
     return True
 
 

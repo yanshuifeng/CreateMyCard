@@ -354,17 +354,17 @@ def test_checked_in_action_templates_expose_second_layer_props() -> None:
 
 
 def test_support_template_exposes_optional_internal_action_prop() -> None:
-    support = get_cardplan_registry().require_template("WeatherOverviewSupport@1")
+    support = get_cardplan_registry().require_template(
+        "WeatherOverviewTemperatureSupport@1"
+    )
     variant = support.variants[0]
     schema = variant.parameters_schema
 
     assert schema["properties"]["actionId"]["type"] == "string"
     assert "actionId" not in schema["required"]
-    action_guard = variant.root.children[-1]
-    assert action_guard.component == "IfParam"
-    assert action_guard.values[0].value == "actionId"
-    action_options = action_guard.children[0].values[0].properties
+    action_options = variant.root.values[0].properties
     assert action_options["onClick"].kind == "event-action"
+    assert action_options["onClick"].items[0].kind == "optional-parameter"
     assert action_options["onClick"].items[0].name == "actionId"
 
 
@@ -510,7 +510,7 @@ def test_provider_template_layout_suffix_combinations_are_enforced() -> None:
     _validate_provider_template_layout_action_requirements(
         "TwoSupportLayout",
         (
-            template("WeatherOverviewSupport@1"),
+            template("WeatherOverviewTemperatureSupport@1"),
             template("BatteryOverviewNormalWeatherSupport@1"),
         ),
         (),

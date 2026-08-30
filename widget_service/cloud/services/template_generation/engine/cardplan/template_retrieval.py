@@ -76,6 +76,11 @@ def build_template_retrieval_prompt(
     capability_ids = tuple(binding.capabilityId for binding in coverage_bindings)
     component_ids = _component_ids_for_capabilities(registry, capability_ids)
     data_roots = {binding.capabilityId: binding.writeResultTo for binding in coverage_bindings}
+    first_layer_theme_ids = tuple(
+        theme_id
+        for theme_id, theme in registry.themes.items()
+        if not theme.supported_layout_ids
+    )
     payload = {
         "userQuery": task_spec.userQuery,
         "taskSpec": task_spec.model_dump(mode="json"),
@@ -94,14 +99,16 @@ def build_template_retrieval_prompt(
             binding.capabilityId: tuple(binding.candidateOutputFields)
             for binding in coverage_bindings
         },
-        "themes": tuple(registry.themes),
+        "themes": first_layer_theme_ids,
         "actionCandidates": [
             {"eventId": event.id, "call": event.call}
             for event in task_spec.eventCandidates
             if event.id
         ],
         "providerFirstLayerRules": registry.provider_first_layer_rules(component_ids, data_roots),
-        "themeFirstLayerRules": registry.theme_first_layer_rule_documents(tuple(registry.themes)),
+        "themeFirstLayerRules": registry.theme_first_layer_rule_documents(
+            first_layer_theme_ids
+        ),
     }
     schema = TemplateRetrievalQuery.model_json_schema(by_alias=True)
     system = (
@@ -136,7 +143,9 @@ def retrieve_template_variants(
 ) -> TemplateRouteSelection:
     """Return component candidate sets; never choose a final CardTpl variant."""
     _require_supported_search_size(task_spec)
-    registry.require_theme(query.theme_id)
+    selected_theme = registry.require_theme(query.theme_id)
+    if selected_theme.supported_layout_ids:
+        raise TemplateRetrievalMiss("first-layer Theme must not be layout-scoped")
     _validate_selected_actions(query, task_spec)
     if not query.required_output_fields_by_capability:
         raise TemplateRetrievalMiss("template retrieval has no requested capability")
@@ -177,12 +186,21 @@ def retrieve_template_variants(
         )
         for component_id, template_ids in sorted(by_component.items())
     )
+    resolved_theme_id = query.theme_id
     if task_spec.size == "2x2":
         candidates, required_groups = _apply_2x2_combination_policy(
             candidates,
             query.action_ids,
             required_groups,
         )
+        if len(candidates) == 2:
+            try:
+                resolved_theme_id = registry.require_layout_theme(
+                    "TwoSupportLayout",
+                    tuple(query.required_output_fields_by_capability),
+                )
+            except ValueError as exc:
+                raise TemplateRetrievalMiss(str(exc)) from exc
     else:
         if len(candidates) > 1:
             raise TemplateRetrievalMiss(
@@ -194,7 +212,7 @@ def retrieve_template_variants(
         )
         required_groups = [candidate.available_template_ids for candidate in candidates]
     scope = AdvancedScopeBrief(
-        themeId=query.theme_id,
+        themeId=resolved_theme_id,
         advancedComponentIds=tuple(candidate.component_id for candidate in candidates),
     )
     return TemplateRouteSelection(

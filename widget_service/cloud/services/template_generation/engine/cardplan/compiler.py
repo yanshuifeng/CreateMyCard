@@ -29,7 +29,6 @@ from services.template_generation.engine.advanced.content_selectors import (
     activity_overview_variants,
     advanced_component_data_admission_is_relaxed,
     approved_schedule_focus_action_ids,
-    bluetooth_device_overview_template_focus,
     extract_activity_overview_facts,
     extract_app_usage_overview_facts,
     extract_battery_overview_facts,
@@ -1057,53 +1056,58 @@ def _validate_provider_template_state(
                     "Bluetooth Provider Template variant does not match the trusted case status."
                 )
             return
+        has_left = facts.left_battery_level is not None
+        has_right = facts.right_battery_level is not None
+        has_case = facts.case_battery_level is not None
+        if variant_name == "earbudsSupport":
+            if not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
+            return
         if facts.is_connected is None or facts.earphone_name is None:
             raise TerselConversionError(
                 "Bluetooth Provider Template has no trusted earphone identity."
             )
         if variant_name == "hero":
             return
-        disconnected_variant = variant_name.startswith("disconnected")
-        if disconnected_variant == facts.is_connected:
-            raise TerselConversionError(
-                "Bluetooth Provider Template variant does not match the trusted connection state."
-            )
-        if "BluetoothDeviceOverview" not in business_names:
+        if variant_name == "earbudPairCompact":
+            if not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
+            return
+        if variant_name == "earbudPairFull":
+            if not has_case or not has_left or not has_right:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match the trusted data shape."
+                )
             return
         paired_with_phone = business_names == {
             "BatteryOverview",
             "BluetoothDeviceOverview",
         }
-        if not facts.is_connected:
-            expected = "disconnectedPhoneCompact" if paired_with_phone else "disconnectedFull"
-        elif paired_with_phone:
-            expected = (
-                "earbudsPhoneCompact"
-                if task_spec.size == "2x2"
-                else "earbudsPhoneWideFull"
-            )
-        elif task_spec.size == "2x4":
-            expected = "earbudsDynamicWideFull"
-        elif bluetooth_device_overview_template_focus(task_spec.userQuery) == "connection":
-            expected = "connectionFull"
-        elif bluetooth_device_overview_template_focus(task_spec.userQuery) == "case":
-            expected = "caseFull"
-        elif facts.left_battery_level is not None and facts.right_battery_level is not None:
-            expected = (
-                "pairVisualFull"
-                if facts.case_battery_level is not None
-                else "earbudPairFull"
-            )
-        elif facts.left_battery_level is not None:
-            expected = "leftEarbudCompact"
-        elif facts.right_battery_level is not None:
-            expected = "rightEarbudCompact"
-        else:
-            expected = "caseFull"
-        if variant_name != expected:
+        phone_variants = {
+            "earbudsPhoneWideFull",
+            "completePhoneWideFull",
+        }
+        standalone_variants = {
+            "earbudsDynamicWideFull",
+            "completeWideFull",
+        }
+        if variant_name in phone_variants and not paired_with_phone:
             raise TerselConversionError(
-                "Bluetooth Provider Template variant does not match the trusted data shape."
+                "Bluetooth Provider Template variant does not match the phone-earphone layout."
             )
+        if variant_name in standalone_variants and paired_with_phone:
+            raise TerselConversionError(
+                "Bluetooth Provider Template variant does not match the phone-earphone layout."
+            )
+        if variant_name in phone_variants | standalone_variants:
+            return
+        raise TerselConversionError(
+            "Bluetooth Provider Template variant does not match the trusted data shape."
+        )
 
 
 def _expand_ux_action_call(
@@ -4354,7 +4358,7 @@ def _instantiate_blueprint(
     node: TemplateNode,
     params: dict[str, Any],
     bindings: dict[str, str] | None = None,
-    theme_values: dict[str, str] | None = None,
+    theme_values: dict[str, object] | None = None,
     *,
     spread_children: tuple[Nested2Node, ...] = (),
 ) -> Nested2Node:
@@ -4400,7 +4404,7 @@ def _instantiate_blueprint_children(
     children: tuple[TemplateNode, ...],
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
     *,
     spread_children: tuple[Nested2Node, ...] = (),
 ) -> tuple[Nested2Node, ...]:
@@ -4506,7 +4510,7 @@ def _template_value(
     value: TemplateValue,
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
 ) -> Any:
     if value.kind == "literal":
         return value.value
@@ -4559,7 +4563,7 @@ def _instantiate_interpolated_text(
     node: TemplateNode,
     params: dict[str, Any],
     bindings: dict[str, str],
-    theme_values: dict[str, str],
+    theme_values: dict[str, object],
 ) -> Nested2Node:
     if node.children:
         raise TerselConversionError("Template interpolation Text cannot contain children.")
@@ -5692,14 +5696,13 @@ def _contains_ux_business_component(
 
 
 _PROVIDER_TEMPLATE_DIRECT_VARIANTS = {
-    "DateOverview@1": {"compact": "compactDate", "full": "dateHero"},
     "ScheduleOverview@1": {
-        "nextEventFull": "nextEvent",
+        "nextEventHero": "nextEvent",
+        "reminderHero": "nextEvent",
+        "timezoneFull": "nextEvent",
+        "dateFull": "nextEvent",
+        "datedMeetingHero": "nextEvent",
         "nextEventLocationFull": "nextEvent",
-        "meetingCompact": "meetingCompact",
-        "meetingLocationCompact": "meetingCompact",
-        "meetingSourceCompact": "meetingCompact",
-        "meetingLocationSourceCompact": "meetingCompact",
         "meetingWideFull": "meetingExpanded",
         "meetingSourceWideFull": "meetingExpanded",
     },
@@ -5755,19 +5758,14 @@ _PROVIDER_TEMPLATE_DIRECT_VARIANTS = {
         "scheduleDetailedStatusWideFull": "schedule",
     },
     "BluetoothDeviceOverview@1": {
-        "connectionFull": "earbuds",
-        "disconnectedFull": "earbuds",
-        "disconnectedPhoneCompact": "earbuds",
-        "caseFull": "earbuds",
-        "earbudsDynamicWideFull": "earbuds",
-        "leftEarbudCompact": "earbuds",
-        "rightEarbudCompact": "earbuds",
-        "earbudPairFull": "earbuds",
-        "pairVisualFull": "earbuds",
-        "completeWideFull": "earbuds",
-        "earbudsPhoneCompact": "earbuds",
+        "hero": "earbuds",
+        "caseStatusCompact": "earbuds",
         "earbudsPhoneWideFull": "earbuds",
-        "earbudPairPhoneCompact": "earbuds",
+        "earbudsDynamicWideFull": "earbuds",
+        "earbudsSupport": "earbuds",
+        "earbudPairFull": "earbuds",
+        "completeWideFull": "earbuds",
+        "earbudPairCompact": "earbuds",
         "completePhoneWideFull": "earbuds",
     },
 }

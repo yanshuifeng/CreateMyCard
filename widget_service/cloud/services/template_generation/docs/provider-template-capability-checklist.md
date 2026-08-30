@@ -4,14 +4,14 @@
 
 ## 整改总览
 
-- [x] 121 个业务模板全部使用 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 后缀；32 个 Support 与 Compact 的数据覆盖一一对应。
+- [x] 91 个业务模板全部使用 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 后缀。
 - [x] 业务模板尺寸和动作组合由后缀推导，不再由 Provider 重复声明。
 - [x] Provider 数据统一拆为 `primaryData`、`secondaryData`、`optionalData`。
 - [x] `primaryData` 与 `secondaryData` 均参与模板准入硬校验。
 - [x] 双业务使用 Support 内嵌事件；Compact 使用双 PillAction；Full 用于无 Action，或搭配一个 IconAction。
 - [x] PillAction/IconAction 使用独立 Action Provider 模板，第二层只输出批准的展示 Props。
 - [x] 第一层支持选择零到两个不重复 eventId。
-- [x] 每个业务模板均在下方按主数据、次要数据、可选数据和布局场景展开。
+- [x] 每个业务模板均在 `provider.json` 中声明主数据、次要数据、可选数据和布局场景。
 
 ## 布局后缀
 
@@ -30,14 +30,16 @@
 | --- | --- | --- | ---: | --- |
 | app-usage | `GetAppUsageDuration` | `/data/appUsageStats` | 6 | 启用 |
 | battery | `GetPhoneBatteryInfo` | `/data/phoneBattery` | 25 | 启用 |
-| calendar | `GetCalendarEvents` | `/data/calendar` | 17 | 启用 |
-| countdown | `GetCountdownDays` | `/data/countdown` | 3 | 启用 |
-| earphone | `GetEarphoneInfo` | `/data/earphone` | 22 | 启用 |
+| calendar | `GetCalendarEvents` | `/data/calendar` | 8 | 启用 |
+| countdown | `GetCountdownDays` | `/data/countdown` | 1 | 启用 |
+| earphone | `GetEarphoneInfo` | `/data/earphone` | 9 | 启用 |
 | health-sport | `GetHealthAndSportSummary` | `/data/healthSport` | 30 | 启用 |
 | system-memory | `GetSystemMemInfo` | `/data/systemMem` | 3 | 启用 |
-| weather | `ViewWeather` | `/data/weather` | 15 | 启用 |
+| weather | `ViewWeather` | `/data/weather` | 9 | 启用 |
 
-下方明细表保留基础形态行以便阅读；每个 `Compact@1` 都另有同数据契约的 `Support@1`，不重复展开行。
+下方完整展开本轮调整的 Calendar、Countdown、Earphone 和 Weather；其他 Provider 保留基础形态摘要，
+精确全集以当前 `provider.json` 为准。只有显式存在 `Support@1` 的业务才能进入双业务组合；Support 与
+Compact 不要求一一对应。
 
 ## AppUsageOverview
 
@@ -76,58 +78,46 @@
 ## CalendarOverview
 
 - Provider：`com.huawei.calendar.cli`；运行状态：启用。
-- 数据能力：`GetCalendarEvents`；模板数：17。
-- 当前只提供日程模板；独立日期单卡与日期加日程的双 Compact 组合已下架。真实日期仍可通过
-  `ScheduleOverviewDatedMeetingHero@1` 与会议标题、起止时间和地点共同展示。
+- 数据能力：`GetCalendarEvents`；模板数：8。
+- 当前没有 Support 或 Compact；真实日期通过 `ScheduleOverviewDateFull@1` 或
+  `ScheduleOverviewDatedMeetingHero@1` 与同一首项日程共同展示。
 
 | 状态 | 模板 | 布局场景 | 主数据 | 次要数据 | 可选数据 |
 | --- | --- | --- | --- | --- | --- |
-| ✅ | `ScheduleOverviewNextEventFull@1` | 完整 2x2；无 Action 的单 Full | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewNextEventHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/events/0/title` | 无 | `/events/0/dtStart`<br>`/events/0/dtEnd`<br>`/events/0/remindTime/0`<br>`/eventCount`<br>`/events/0/description`<br>`/events/0/timeZone`<br>`/events/0/isAllDay`<br>`/events/0/eventLocation` |
+| ✅ | `ScheduleOverviewNextEventHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/events/0/title` | `/events/0/dtStart`<br>`/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
 | ✅ | `ScheduleOverviewReminderHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/events/0/title` | `/events/0/dtStart`<br>`/events/0/remindTime/0` | 无 |
-| ✅ | `ScheduleOverviewTimezoneFull@1` | 完整 2x2；无 Action 的单 Full | `/events/0/timeZone`<br>`/events/0/title` | `/events/0/isAllDay`<br>`/events/0/eventLocation` | 无 |
-| ✅ | `ScheduleOverviewEventCountHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/eventCount`<br>`/events/0/title` | `/events/0/dtStart`<br>`/events/0/description` | 无 |
-| ✅ | `ScheduleOverviewDatedMeetingHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/startDate`<br>`/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
-| ✅ | `ScheduleOverviewNextEventLocationFull@1` | 完整 2x2；无 Action 的单 Full | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/eventLocation`<br>`/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingLocationCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/eventLocation`<br>`/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingWideFull@1` | 完整 4x2；单 WideFull | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/eventLocation`<br>`/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingSourceCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingLocationSourceCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/eventLocation`<br>`/events/0/dtEnd` | 无 |
-| ✅ | `ScheduleOverviewMeetingSourceWideFull@1` | 完整 4x2；单 WideFull | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/eventLocation`<br>`/events/0/dtEnd` | 无 |
+| ✅ | `ScheduleOverviewTimezoneFull@1` | 完整 2x2；无 Action 或加一个 IconAction | `/events/0/timeZone`<br>`/events/0/title` | `/events/0/dtStart`<br>`/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
+| ✅ | `ScheduleOverviewDateFull@1` | 完整 2x2；无 Action 或加一个 IconAction | `/events/0/startDate`<br>`/events/0/title` | `/events/0/dtStart`<br>`/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
+| ✅ | `ScheduleOverviewDatedMeetingHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/events/0/startDate`<br>`/events/0/title` | `/events/0/dtStart`<br>`/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
+| ✅ | `ScheduleOverviewNextEventLocationFull@1` | 完整 2x2；无 Action 或加一个 IconAction | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
+| ✅ | `ScheduleOverviewMeetingWideFull@1` | 完整 4x2；单 WideFull | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
+| ✅ | `ScheduleOverviewMeetingSourceWideFull@1` | 完整 4x2；单 WideFull | `/events/0/title`<br>`/events/0/dtStart` | `/events/0/dtEnd`<br>`/events/0/eventLocation` | 无 |
 
 ## CountdownOverview
 
 - Provider：`com.huawei.countdown.cli`；运行状态：启用。
-- 数据能力：`GetCountdownDays`；模板数：3。
+- 数据能力：`GetCountdownDays`；模板数：1；当前没有 Support、Compact 或 Hero。
 
 | 状态 | 模板 | 布局场景 | 主数据 | 次要数据 | 可选数据 |
 | --- | --- | --- | --- | --- | --- |
-| ✅ | `CountdownOverviewFull@1` | 完整 2x2；无 Action 的单 Full | `/countdownDays` | 无 | 无 |
+| ✅ | `CountdownOverviewFull@1` | 完整 2x2；无 Action，或加一个 IconAction | `/countdownDays` | 无 | 无 |
 
 ## BluetoothDeviceOverview
 
 - Provider：`com.huawei.earphone.cli`；运行状态：启用。
-- 数据能力：`GetEarphoneInfo`；模板数：22。
+- 数据能力：`GetEarphoneInfo`；模板数：9。
 
 | 状态 | 模板 | 布局场景 | 主数据 | 次要数据 | 可选数据 |
 | --- | --- | --- | --- | --- | --- |
-| ✅ | `BluetoothDeviceOverviewDisconnectedFull@1` | 完整 2x2；无 Action 的单 Full | `/isConnected` | `/earphoneName` | 无 |
-| ✅ | `BluetoothDeviceOverviewConnectionFull@1` | 完整 2x2；无 Action 的单 Full | `/isConnected` | `/earphoneName` | 无 |
-| ✅ | `BluetoothDeviceOverviewDisconnectedPhoneCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/isConnected` | 无 | 无 |
-| ✅ | `BluetoothDeviceOverviewEarbudsPhoneCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/isConnected` | 无 | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` |
+| ✅ | `BluetoothDeviceOverviewHero@1` | 约 2x1.7；Hero + 1 个 PillAction | `/isConnected`<br>`/earphoneName` | `/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
 | ✅ | `BluetoothDeviceOverviewCaseStatusCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batteryLevel`<br>`/chargingStatusDesc` | 无 | `/leftChargingStatusDesc`<br>`/rightChargingStatusDesc` |
-| ✅ | `BluetoothDeviceOverviewEarbudsPhoneWideFull@1` | 完整 4x2；单 WideFull | `/isConnected` | `/earphoneName` | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` |
-| ✅ | `BluetoothDeviceOverviewEarbudsDynamicWideFull@1` | 完整 4x2；单 WideFull | `/isConnected` | `/earphoneName` | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` |
-| ✅ | `BluetoothDeviceOverviewCaseFull@1` | 完整 2x2；无 Action 的单 Full | `/isConnected` | `/earphoneName`<br>`/batteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewLeftEarbudCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/isConnected` | `/earphoneName`<br>`/leftBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewRightEarbudCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/isConnected` | `/earphoneName`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewEarbudPairFull@1` | 完整 2x2；无 Action 的单 Full | `/isConnected` | `/earphoneName`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewPairVisualFull@1` | 完整 2x2；无 Action 的单 Full | `/isConnected` | `/earphoneName`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewCompleteWideFull@1` | 完整 4x2；单 WideFull | `/isConnected` | `/earphoneName`<br>`/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewEarbudPairPhoneCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/isConnected` | `/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewCompletePhoneWideFull@1` | 完整 4x2；单 WideFull | `/isConnected` | `/earphoneName`<br>`/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
-| ✅ | `BluetoothDeviceOverviewHero@1` | 约 2x1.7；Hero + 1 个 PillAction；顶部展示 `title` 文本属性 | `/isConnected`<br>`/earphoneName` | 无 | 无 |
+| ✅ | `BluetoothDeviceOverviewEarbudsPhoneWideFull@1` | 完整 4x2；单 WideFull | `/isConnected`<br>`/earphoneName` | 无 | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` |
+| ✅ | `BluetoothDeviceOverviewEarbudsDynamicWideFull@1` | 完整 4x2；单 WideFull | `/isConnected`<br>`/earphoneName` | 无 | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` |
+| ✅ | `BluetoothDeviceOverviewEarbudsSupport@1` | 约 2x1；双 Support，事件在模板内部 | `/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 | 无 |
+| ✅ | `BluetoothDeviceOverviewEarbudPairFull@1` | 完整 2x2；无 Action 或加一个 IconAction | `/isConnected`<br>`/earphoneName` | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
+| ✅ | `BluetoothDeviceOverviewCompleteWideFull@1` | 完整 4x2；单 WideFull | `/isConnected`<br>`/earphoneName` | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
+| ✅ | `BluetoothDeviceOverviewEarbudPairCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/earphoneName` | `/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
+| ✅ | `BluetoothDeviceOverviewCompletePhoneWideFull@1` | 完整 4x2；单 WideFull | `/isConnected`<br>`/earphoneName` | `/batteryLevel`<br>`/leftBatteryLevel`<br>`/rightBatteryLevel` | 无 |
 
 ## ActivityOverview
 
@@ -195,12 +185,14 @@
 ## WeatherOverview
 
 - Provider：`com.huawei.weather.cli`；运行状态：启用。
-- 数据能力：`ViewWeather`；模板数：15。
+- 数据能力：`ViewWeather`；模板数：9。
 
 | 状态 | 模板 | 布局场景 | 主数据 | 次要数据 | 可选数据 |
 | --- | --- | --- | --- | --- | --- |
 | ✅ | `WeatherOverviewCompact@1` | 约 2x1；可选天气图标；Compact + 2 个 PillAction | `/current/temperatureText` | `/location/districtName`<br>`/current/condition`<br>`/current/coldLevel` | 无 |
-| ✅ | `WeatherOverviewTemperatureIconCompact@1` | 约 2x1；温度、城市与天气图标；单 Compact + 2 个 PillAction | `/current/temperatureText` | `/location/districtName` | 无 |
+| ✅ | `WeatherOverviewUvCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/current/temperatureText`<br>`/current/uvIndex` | `/location/districtName`<br>`/current/condition` | 无 |
+| ✅ | `WeatherOverviewTemperatureSupport@1` | 约 2x1；双 Support，事件在模板内部 | `/current/temperatureText` | `/location/districtName`<br>`/current/condition`<br>`/current/coldLevel` | 无 |
+| ✅ | `WeatherOverviewTemperatureUvSupport@1` | 约 2x1；双 Support，事件在模板内部 | `/current/temperatureText`<br>`/current/uvIndex` | `/location/districtName`<br>`/current/condition` | 无 |
 | ✅ | `WeatherOverviewHero@1` | 约 2x1.7；可选天气图标；Hero + 1 个 PillAction | `/current/temperatureText` | `/location/districtName`<br>`/current/condition`<br>`/current/coldLevel` | 无 |
 | ✅ | `WeatherOverviewFull@1` | 完整 2x2；可选天气图标；无 Action 的单 Full | `/current/temperatureText` | `/location/districtName`<br>`/current/condition`<br>`/current/airQuality`<br>`/current/coldLevel` | 无 |
 | ✅ | `WeatherOverviewHumidityFull@1` | 完整 2x2；无 Action 的单 Full | `/current/humidityPercent` | `/location/districtName`<br>`/current/condition`<br>`/current/temperatureText`<br>`/current/airQuality`<br>`/current/coldLevel` | 无 |
@@ -211,8 +203,8 @@
 
 ## 验收口径
 
-- 业务模板 ID 不符合五类后缀时，Provider Bundle 加载失败。
-- Wide 后缀只能进入 2x4；其余三类只能进入 2x2。
+- 业务模板 ID 不符合六类后缀时，Provider Bundle 加载失败。
+- Wide 后缀只能进入 2x4；其余四类只能进入 2x2。
 - 任一主数据或次要数据在 TaskSpec 中缺失时，模板不准入。
 - 三组数据路径必须分别唯一且互不重叠。
 - 模板 `$path` 只能引用主数据或次要数据；`$optionalPath` 只能引用可选数据。

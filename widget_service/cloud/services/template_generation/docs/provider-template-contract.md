@@ -98,6 +98,11 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 | 1 | 2 | `Compact` | `CompactTwoActionLayout` + 2 个连续的 `PillAction` |
 | 2 | 0～2 | 2 个 `Support` | `TwoSupportLayout`；事件按需绑定在对应 Support 内部，根布局不生成 Action |
 
+双业务主题不由第一层模型选择。第一层仍选择覆盖业务语义的普通主题；当 Search 或旧二层作用域确定为
+`2x2`、两个业务时，服务端根据 `TwoSupportLayout` 和两个业务能力唯一解析布局专用主题
+`2x2-two-support`。该主题必须覆盖两个能力，并统一提供卡片根样式与两个 Support 内容块的
+`supportContentStyle`。没有唯一兼容主题时，模板路线明确拒绝，不回退为两个不同业务主题拼接。
+
 Search 只保留能够独立完整覆盖所属业务显式字段的模板候选，不提前在 `Hero` 与
 `Full + IconAction` 之间做最终视觉选择。第二层只能使用 Search 返回的候选、已批准事件和
 已批准素材组成一个完整布局。已选事件必须各消费一次，不得重复、遗漏或改写归属；编译器对模板后缀、
@@ -108,7 +113,9 @@ Search 只保留能够独立完整覆盖所属业务显式字段的模板候选�
 
 Provider `.cardtpl` 中的组件统一采用 Tersel Option 3，只写内联样式，不写 DesignToken。模板是受信资源，
 不需要使用 DesignToken 缩短模型 Prompt；需要随 Theme 变化的颜色在内联样式值中使用受限
-`$theme('<path>')` 引用。
+`$theme('<path>')` 引用。业务模板使用主辅内容色、进度色和 Action 色路径；布局模板还可使用
+`supportContentStyle.backgroundColor` 与 `supportContentStyle.borderRadius`。允许路径统一由
+`themes/base/theme-base.json` 声明，最终产物不得残留 `$theme`。
 
 ```text
 #Template WeatherSummaryHero@1(props: { title: string, icon?: asset })

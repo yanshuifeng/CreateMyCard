@@ -4514,6 +4514,8 @@ def _template_value(
         if value.name not in params:
             raise TerselConversionError(f"Template parameter is missing: {value.name}")
         return params[value.name]
+    if value.kind == "optional-parameter":
+        return params.get(value.name)
     if value.kind == "binding":
         if value.name not in bindings:
             raise TerselConversionError(f"Template binding is missing: {value.name}")
@@ -4529,9 +4531,14 @@ def _template_value(
     if value.kind == "expression":
         return _provider_runtime_expression(value, bindings)
     if value.kind == "event-action":
-        if len(value.items) != 1 or value.items[0].kind != "parameter":
+        if len(value.items) != 1:
             raise TerselConversionError("Template EventAction is invalid.")
-        action_id = _template_value(value.items[0], params, bindings, theme_values)
+        parameter = value.items[0]
+        if parameter.kind not in {"parameter", "optional-parameter"}:
+            raise TerselConversionError("Template EventAction is invalid.")
+        action_id = _template_value(parameter, params, bindings, theme_values)
+        if action_id is None and parameter.kind == "optional-parameter":
+            return None
         if not isinstance(action_id, str):
             raise TerselConversionError("Template EventAction ID is invalid.")
         return [{"call": "sendToAssistant", "args": {"eventName": action_id}}]
@@ -4539,10 +4546,13 @@ def _template_value(
         return [
             _template_value(item, params, bindings, theme_values) for item in value.items
         ]
-    return {
-        key: _template_value(item, params, bindings, theme_values)
-        for key, item in value.properties.items()
-    }
+    properties: dict[str, Any] = {}
+    for key, item in value.properties.items():
+        resolved = _template_value(item, params, bindings, theme_values)
+        if item.kind == "event-action" and resolved is None:
+            continue
+        properties[key] = resolved
+    return properties
 
 
 def _instantiate_interpolated_text(

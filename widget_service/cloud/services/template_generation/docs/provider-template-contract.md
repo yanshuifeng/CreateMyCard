@@ -75,10 +75,15 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 业务模板不再重复声明 `supportedCardSizes` 和 `requiresLayoutAction`，Registry 直接从后缀推导。业务语义或
 状态写在后缀前，例如 `BatteryOverviewChargingWeatherCompact@1`。布局 Provider 不受此后缀约束。
 
-每个 `Support` 模板提供可选的 `actionId` Prop，并在源模板中使用受控
-`IfPresent(props.actionId, ...)` 形成内部点击热区；构建阶段再转换为内部 `IfParam`
-节点。
-没有已选事件时省略该 Prop；事件值只能来自第一层已批准候选，并由服务端按原始 `call/args` 可信绑定。
+每个 `Support` 模板提供可选的 `actionId` Prop，并在业务根节点的 options 中写入受控事件：
+
+```text
+"onClick": EventAction(props?.actionId)
+```
+
+`props?.actionId` 只允许作为 `EventAction` 的参数；Prop 有值时解析为对应 Action ID，缺失或值为
+`None` 时返回 `None`，编译器随后省略整个 `onClick`，不创建 `EventAction`。没有已选事件时第二层省略
+该 Prop；事件值只能来自第一层已批准候选，并由服务端按原始 `call/args` 可信绑定。
 
 ### `2x2` 固定布局组合
 
@@ -277,8 +282,9 @@ Provider 选择模板。第二层不接收 TaskSpec、`dataFacts`、`mustKeep` �
 `FullIconActionLayout` 中使用一个 IconAction；双 Support 把 actionId 各一次写入业务模板内部；WideFull
 不生成 Action。PillAction Props
 包含 `actionId`、`label` 和可选 `icon`，IconAction Props 包含 `actionId`、`icon`。第二层只决定展示内容，
-Action CardTpl 必须在交互组件样式中写入 `onClick: EventAction(props.actionId)`；微服务校验候选配对，
-将该模板声明绑定为可信事件并注入主题色。模型不得输出 `call`、`args`、`onClick`。
+必选 Action CardTpl 必须在交互组件样式中写入 `onClick: EventAction(props.actionId)`；可选事件的
+Support CardTpl 使用 `onClick: EventAction(props?.actionId)`。微服务校验候选配对，将该模板声明绑定为
+可信事件并注入主题色。模型不得输出 `call`、`args`、`onClick`。
 
 ## 当前迁移范围
 

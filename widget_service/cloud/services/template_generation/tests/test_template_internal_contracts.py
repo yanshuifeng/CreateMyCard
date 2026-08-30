@@ -369,6 +369,88 @@ def test_support_template_exposes_optional_internal_action_prop() -> None:
 
 
 @pytest.mark.parametrize(
+    ("params", "expected_event_name"),
+    (
+        ({"actionId": "event.open.weather"}, "event.open.weather"),
+        ({}, None),
+        ({"actionId": None}, None),
+    ),
+)
+def test_optional_event_action_omits_on_click_without_action_id(
+    params: dict[str, object],
+    expected_event_name: str | None,
+) -> None:
+    source = """#Template OptionalAction@1(props: { actionId?: string })
+data = {
+}
+
+Stack({
+  "width": "matchParent",
+  "onClick": EventAction(props?.actionId)
+}, Text("动作", "body"))
+#End
+"""
+    definition = compile_card_template(
+        source,
+        provider_id="example.action",
+        business_id=None,
+        expected_wire_id="OptionalAction@1",
+        expected_capability_id=None,
+        data_domain=None,
+        description="optional EventAction",
+        supported_card_sizes=(),
+        primary_data=(),
+        secondary_data=(),
+        optional_data=(),
+        output_schema={"type": "object", "properties": {}},
+    )
+    blueprint = definition.variants[0].root
+    action_value = blueprint.values[0].properties["onClick"]
+
+    assert action_value.kind == "event-action"
+    assert action_value.items[0].kind == "optional-parameter"
+    root = _instantiate_blueprint(blueprint, params)
+    options = root.values[0]
+    if expected_event_name is None:
+        assert "onClick" not in options
+    else:
+        assert options["onClick"] == [
+            {
+                "call": "sendToAssistant",
+                "args": {"eventName": expected_event_name},
+            }
+        ]
+
+
+def test_optional_event_action_rejects_required_prop() -> None:
+    source = """#Template InvalidOptionalAction@1(props: { actionId: string })
+data = {
+}
+
+Stack({
+  "onClick": EventAction(props?.actionId)
+}, Text("动作", "body"))
+#End
+"""
+
+    with pytest.raises(ValueError, match="requires an optional prop: actionId"):
+        compile_card_template(
+            source,
+            provider_id="example.action",
+            business_id=None,
+            expected_wire_id="InvalidOptionalAction@1",
+            expected_capability_id=None,
+            data_domain=None,
+            description="invalid optional EventAction",
+            supported_card_sizes=(),
+            primary_data=(),
+            secondary_data=(),
+            optional_data=(),
+            output_schema={"type": "object", "properties": {}},
+        )
+
+
+@pytest.mark.parametrize(
     ("event_value", "message"),
     (
         ('EventAction("event.open.weather")', "requires one props parameter"),

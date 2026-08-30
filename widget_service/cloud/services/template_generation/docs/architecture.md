@@ -157,7 +157,8 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 数量或必需参数筛选后为空时直接失败。单业务一个 Action 时，若存在语义匹配图标，二层可在
 `HeroActionLayout + PillAction` 与 `FullIconActionLayout + IconAction` 中选择；双业务只能使用
 `TwoSupportLayout`，不生成根级 Action child。二层不能输出原始 `call/args`，也不能绕过
-`EventAction(props.actionId)` 生成交互。
+必选事件使用 `EventAction(props.actionId)` 生成交互；Support 的可选事件使用
+`EventAction(props?.actionId)`，未提供 `actionId` 时不生成 `onClick`。
 
 ### 3.4 受信编译与展开
 
@@ -167,7 +168,8 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 2. 校验原始组件数、层级、允许的 Template ID、Props 类型和必传数据。
 3. 按布局后缀校验卡片尺寸、业务节点数和 Action 类型/数量。
 4. 展开 CardTpl，处理 `Bind`、`Param`、`Asset`、`Expr`、条件节点和 children 槽位。
-5. 将 Action Template 的 `EventAction(props.actionId)` 实体化为已批准事件。
+5. 将 Action Template 的 `EventAction(props.actionId)` 实体化为已批准事件；对 Support 中的
+   `EventAction(props?.actionId)`，缺少 `actionId` 时省略 `onClick`。
 6. 将 Theme `rootStyle` 应用到卡片根节点；为未显式着色的内容组件补 `primaryColor`；确定性展开
    CardTpl/Tersel 中的 `$theme(...)`；将 `actionStyle` 的背景色和内容色应用到受信 Action Template，保留
    模板节点已经显式声明的高度、圆角、字号和字重，然后执行布局 Lowering。

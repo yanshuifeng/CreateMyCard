@@ -64,6 +64,7 @@ class TemplateValue(StrictModel):
     kind: Literal[
         "literal",
         "parameter",
+        "optional-parameter",
         "binding",
         "event-action",
         "theme",

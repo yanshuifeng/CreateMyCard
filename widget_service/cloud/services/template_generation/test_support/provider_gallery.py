@@ -21,7 +21,7 @@ from api.schemas import (
     GenerateWidgetCardResponse,
     ToolRequestEnvelope,
 )
-from core.errors import GenerationStatus
+from core.errors import ErrorCode, GenerationStatus
 from custom.model_runtime import ModelExecutionRuntime
 from models.artifact import WidgetArtifact
 from models.generation import ModelRequestContext
@@ -30,16 +30,16 @@ from services.artifact_store import ArtifactStore
 from services.template_generation.controls import load_template_controls
 from services.widget_generation_service import WidgetGenerationService
 
-INPUT_SCHEMA_VERSION = "provider-template-gallery-input/2"
+INPUT_SCHEMA_VERSION = "provider-template-gallery-input/3"
 OUTPUT_SCHEMA_VERSION = "provider-template-gallery-output/2"
 DEFAULT_APP_VERSION = "11.7.5.205"
+FUSION_APP_VERSION = "11.7.5.206"
 DEFAULT_ROM_VERSION = "6.0"
 DEFAULT_BUNDLE_NAME = "com.huawei.genui.evaluation"
-MULTI_BUSINESS_UNSUPPORTED_ERROR = "TEMPLATE_SEARCH_MULTI_BUSINESS_UNSUPPORTED"
-MULTI_BUSINESS_UNSUPPORTED_REASON = "模板 Search 暂不支持多业务组合"
 
 _TEMPLATE_GENERATION_ROOT = Path(__file__).resolve().parents[1]
 _PROVIDER_ROOT = _TEMPLATE_GENERATION_ROOT / "resources" / "source" / "providers"
+_THEME_ROOT = _TEMPLATE_GENERATION_ROOT / "resources" / "source" / "themes"
 _CAPABILITY_ROOT = (
     Path(__file__).resolve().parents[3]
     / "data"
@@ -142,6 +142,7 @@ _ACTION_QUERIES_BY_BUSINESS = {
 
 _ASSET_IDS_BY_TEMPLATE_PREFIX = {
     "BatteryOverview": ("asset.battery_leaf_fill",),
+    "BluetoothDeviceOverviewCaseStatus": ("asset.earphone_case_16644",),
     "HeartRateOverviewIcon": ("asset.heart_fill",),
     "HeartRateOverviewUpdatedIcon": ("asset.heart_fill",),
     "ScheduleOverviewNextEventHero": ("asset.calendar_fill",),
@@ -149,35 +150,14 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.calendar_fill",
         "asset.icon_meeting",
     ),
-    "ScheduleOverviewNextEventFull": (
-        "asset.calendar_fill",
+    "ScheduleOverviewDateFull": (
+        "asset.clock",
+        "asset.location_north_up_right_fill",
     ),
     "ScheduleOverviewNextEventLocationFull": (
         "asset.calendar_fill",
         "asset.clock",
         "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingLocationSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
-        "asset.location_north_up_right_fill",
-        "asset.icon_meeting",
-    ),
-    "ScheduleOverviewMeetingSourceCompact": (
-        "asset.calendar_fill",
-        "asset.clock",
         "asset.icon_meeting",
     ),
     "ScheduleOverviewMeetingSourceWideFull": (
@@ -192,6 +172,17 @@ _ASSET_IDS_BY_TEMPLATE_PREFIX = {
         "asset.location_north_up_right_fill",
         "asset.icon_meeting",
     ),
+    "BluetoothDeviceOverviewCaseStatusCompact": (
+        "asset.earphone_case_16644",
+    ),
+    "BluetoothDeviceOverviewEarbudsSupport": (
+        "asset.icon_earphone",
+    ),
+    "BluetoothDeviceOverviewEarbudPair": (
+        "asset.earphone_case_16644",
+        "asset.l_circle_fill",
+        "asset.r_circle_fill",
+    ),
 }
 
 _ASSET_SEARCH_TERMS_BY_TEMPLATE_PREFIX = {
@@ -199,22 +190,23 @@ _ASSET_SEARCH_TERMS_BY_TEMPLATE_PREFIX = {
 }
 
 _CALENDAR_NEXT_EVENT_RUNTIME_FIELDS = ("/events/0/dtStart",)
+_WORKOUT_RUNTIME_FIELDS = ("/exerciseEndTimeText",)
 _BATTERY_FACT_FIELDS = frozenset(("/batterySOC", "/batterySOCText"))
 _BATTERY_FACT_FALLBACK_EXEMPT_TEMPLATE_IDS = frozenset(
     {"BatteryOverviewHealthLevelHero@1"}
 )
 
-_COMPACT_PARTNER_PRIORITY = (
-    "AppUsageOverviewCompact@1",
-    "ActivityOverviewCompact@1",
-    "ResourceUsageOverviewCompact@1",
-    "WeatherOverviewCompact@1",
-    "BatteryOverviewNormalWeatherCompact@1",
+_SUPPORT_PARTNER_PRIORITY = (
+    "AppUsageOverviewSupport@1",
+    "ActivityOverviewSupport@1",
+    "ResourceUsageOverviewSupport@1",
+    "WeatherOverviewTemperatureSupport@1",
+    "BatteryOverviewNormalWeatherSupport@1",
 )
 
-_CALENDAR_COMPACT_PARTNER_PRIORITY = (
-    "WeatherOverviewCompact@1",
-    *_COMPACT_PARTNER_PRIORITY,
+_CALENDAR_SUPPORT_PARTNER_PRIORITY = (
+    "WeatherOverviewTemperatureSupport@1",
+    *_SUPPORT_PARTNER_PRIORITY,
 )
 
 
@@ -231,6 +223,10 @@ class GalleryInputCase(BaseModel):
     businessName: str
     scenarioId: str
     scenarioName: str
+    appearanceId: str
+    appearanceName: str
+    appVersion: str
+    expectsFusionBall: bool
     expectedLayout: str
     expectedTemplateSuffix: str
     targetTemplateId: str = ""
@@ -303,6 +299,32 @@ class GalleryRunSummary:
     not_generated: int
 
 
+@dataclass(frozen=True)
+class GalleryAppearance:
+    """由 TaskSpec 端侧版本裁决的一种画廊外观。"""
+
+    appearance_id: str
+    appearance_name: str
+    app_version: str
+    fusion_enabled: bool
+
+
+_GALLERY_APPEARANCES = (
+    GalleryAppearance(
+        appearance_id="standard",
+        appearance_name="非融球",
+        app_version=DEFAULT_APP_VERSION,
+        fusion_enabled=False,
+    ),
+    GalleryAppearance(
+        appearance_id="fusion",
+        appearance_name="融球",
+        app_version=FUSION_APP_VERSION,
+        fusion_enabled=True,
+    ),
+)
+
+
 class GalleryGenerationService(Protocol):
     """批跑依赖的正式生成入口协议。"""
 
@@ -361,7 +383,15 @@ def _ordered_unique(values: list[str]) -> tuple[str, ...]:
 
 def _template_suffix(template_id: str) -> str:
     local_id = template_id.split("@", maxsplit=1)[0]
-    for suffix in ("WideHero", "WideFull", "Compact", "Hero", "Full", "Compat"):
+    for suffix in (
+        "WideHero",
+        "WideFull",
+        "Support",
+        "Compact",
+        "Hero",
+        "Full",
+        "Compat",
+    ):
         if local_id.endswith(suffix):
             return suffix
     return ""
@@ -410,6 +440,7 @@ def _template_definition(template: dict[str, Any]) -> ProviderTemplateDefinition
     fields = [
         *template.get("primaryData", []),
         *template.get("secondaryData", []),
+        *template.get("optionalData", []),
     ]
     return ProviderTemplateDefinition(
         template_id=template_id,
@@ -454,6 +485,22 @@ def _load_asset_capabilities(
     }
 
 
+def _load_fusion_business_ids(theme_root: Path) -> set[str]:
+    business_ids: set[str] = set()
+    for path in sorted(theme_root.glob("*/theme.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        fusion_style = payload.get("fusionBallStyle")
+        if not isinstance(fusion_style, dict):
+            continue
+        values = fusion_style.get("businessIds")
+        if not isinstance(values, list):
+            continue
+        for value in values:
+            if isinstance(value, str) and value:
+                business_ids.add(value)
+    return business_ids
+
+
 def _normalize_action_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {key: _normalize_action_value(item) for key, item in value.items()}
@@ -488,13 +535,18 @@ def _data_binding(
     template_id = template.template_id if template is not None else ""
     needs_battery_fact_fallback = (
         definition.business_id == "BatteryOverview"
-        and not _BATTERY_FACT_FIELDS.intersection(configured_fields)
         and template_id not in _BATTERY_FACT_FALLBACK_EXEMPT_TEMPLATE_IDS
     )
     if needs_battery_fact_fallback:
-        fields = _ordered_unique([*configured_fields, "/batterySOCText"])
+        fields = _ordered_unique(
+            [*configured_fields, "/batterySOC", "/batterySOCText"]
+        )
     if template is not None and template.template_id.startswith("ScheduleOverviewNextEvent"):
         fields = _ordered_unique([*configured_fields, *_CALENDAR_NEXT_EVENT_RUNTIME_FIELDS])
+    if definition.business_id == "WorkoutOverview":
+        fields = _ordered_unique([*fields, *_WORKOUT_RUNTIME_FIELDS])
+    if definition.business_id == "BluetoothDeviceOverview":
+        fields = _ordered_unique([*fields, "/isConnected", "/earphoneName"])
     return {
         "arguments": deepcopy(_CAPABILITY_ARGUMENTS[definition.capability_id]),
         "candidateOutputFields": list(fields),
@@ -503,7 +555,7 @@ def _data_binding(
     }
 
 
-def _compact_partners(
+def _support_partners(
     definitions: list[BusinessDefinition],
     available_capability_ids: set[str],
 ) -> tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...]:
@@ -514,7 +566,7 @@ def _compact_partners(
             continue
         if definition.provider_id in controls.disabled_provider_ids:
             continue
-        for template in _templates_for_suffix(definition, "Compact"):
+        for template in _templates_for_suffix(definition, "Support"):
             if template.template_id not in controls.disabled_template_ids:
                 partners.append((definition, template))
     return tuple(partners)
@@ -570,18 +622,18 @@ def _asset_ids_matching_terms(
 def _partner_for_template(
     definition: BusinessDefinition,
     target_template: ProviderTemplateDefinition | None,
-    compact_partners: tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...],
+    support_partners: tuple[tuple[BusinessDefinition, ProviderTemplateDefinition], ...],
 ) -> tuple[BusinessDefinition, ProviderTemplateDefinition]:
     candidates = tuple(
-        item for item in compact_partners if item[0].provider_id != definition.provider_id
+        item for item in support_partners if item[0].provider_id != definition.provider_id
     )
     if not candidates:
-        raise ValueError(f"business {definition.business_id} has no cross-provider Compact partner")
+        raise ValueError(f"business {definition.business_id} has no cross-provider Support partner")
     by_template_id = {item[1].template_id: item for item in candidates}
     priority = (
-        _CALENDAR_COMPACT_PARTNER_PRIORITY
+        _CALENDAR_SUPPORT_PARTNER_PRIORITY
         if definition.business_id == "CalendarOverview"
-        else _COMPACT_PARTNER_PRIORITY
+        else _SUPPORT_PARTNER_PRIORITY
     )
     for template_id in priority:
         if template_id in by_template_id:
@@ -598,6 +650,19 @@ def _gallery_sample_overrides(
         for template in (target_template, partner_template)
         if template is not None
     )
+    sample_overrides: dict[str, Any] = {}
+    earphone_template = next(
+        (
+            template
+            for template in templates
+            if template.template_id.startswith("BluetoothDeviceOverview")
+        ),
+        None,
+    )
+    if earphone_template is not None:
+        sample_overrides["/data/earphone/isConnected"] = (
+            "Disconnected" not in earphone_template.template_id
+        )
     battery_template = next(
         (
             template
@@ -607,18 +672,18 @@ def _gallery_sample_overrides(
         None,
     )
     if battery_template is None:
-        return {}
+        return sample_overrides
     template_id = battery_template.template_id
-    sample_overrides: dict[str, Any] = {}
+    battery_overrides: dict[str, Any] = {}
     if "BatteryOverviewCharging" in template_id:
-        sample_overrides = {
+        battery_overrides = {
             "/data/phoneBattery/batterySOC": 68,
             "/data/phoneBattery/batterySOCText": "68%",
             "/data/phoneBattery/chargingStatusDesc": "正在充电",
             "/data/phoneBattery/batteryCapacityLevelDesc": "正常电量",
         }
     elif "BatteryOverviewLow" in template_id:
-        sample_overrides = {
+        battery_overrides = {
             "/data/phoneBattery/batterySOC": 15,
             "/data/phoneBattery/batterySOCText": "15%",
             "/data/phoneBattery/chargingStatusDesc": "未充电",
@@ -627,11 +692,14 @@ def _gallery_sample_overrides(
     available_fields = set(battery_template.fields)
     if not _BATTERY_FACT_FIELDS.intersection(available_fields):
         available_fields.add("/batterySOCText")
-    return {
-        path: value
-        for path, value in sample_overrides.items()
-        if path.removeprefix("/data/phoneBattery") in available_fields
-    }
+    sample_overrides.update(
+        {
+            path: value
+            for path, value in battery_overrides.items()
+            if path.removeprefix("/data/phoneBattery") in available_fields
+        }
+    )
+    return sample_overrides
 
 
 def _request_envelope(
@@ -640,6 +708,7 @@ def _request_envelope(
     partner: BusinessDefinition,
     partner_template: ProviderTemplateDefinition,
     scenario_id: str,
+    appearance: GalleryAppearance,
     event_capabilities: dict[str, dict[str, Any]],
     asset_capabilities: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
@@ -653,8 +722,8 @@ def _request_envelope(
     if scenario_id == "two-contents":
         data_bindings.append(_data_binding(partner, partner_template))
         user_query = (
-            f"生成一个2×2组合卡片，第一块紧凑内容按“{template_description}”展示；"
-            f"第二块紧凑内容按“{partner_template.description or partner_description}”展示。"
+            f"生成一个2×2组合卡片，第一块 Support 内容按“{template_description}”展示；"
+            f"第二块 Support 内容按“{partner_template.description or partner_description}”展示。"
             "两块内容同等重要，不显示操作按钮。"
         )
     elif scenario_id == "single-two-actions":
@@ -710,7 +779,7 @@ def _request_envelope(
             "deviceType": 0,
             "locale": "zh-CN",
             "phoneType": "GENUI-GALLERY",
-            "prdVer": DEFAULT_APP_VERSION,
+            "prdVer": appearance.app_version,
             "romVersion": DEFAULT_ROM_VERSION,
             "sysVer": "HarmonyOS NEXT",
             "time": "20260826000000000",
@@ -727,7 +796,8 @@ def _request_envelope(
             "isNew": True,
             "sessionId": (
                 f"gallery-{definition.provider_slug}-"
-                f"{_kebab_case(definition.business_id)}-{target_slug}-{case_suffix}"
+                f"{_kebab_case(definition.business_id)}-{target_slug}-{case_suffix}-"
+                f"{appearance.appearance_id}"
             ),
         },
         "userAuth": {"user": {"userId": "template-gallery"}},
@@ -743,7 +813,7 @@ def _scenario_metadata(scenario_id: str) -> tuple[str, str, str]:
             "Compact + 2 × PillAction",
             "Compact",
         ),
-        "two-contents": ("2 个内容", "2 × Compact", "Compact"),
+        "two-contents": ("2 个内容", "2 × Support", "Support"),
         "single-one-action": (
             "单内容 + 1 个 Action",
             "Hero + PillAction",
@@ -770,7 +840,7 @@ def _missing_reason(
     if target_template is None:
         return f"缺失 {suffix} 模板"
     if scenario_id == "two-contents" and partner_template is None:
-        return "缺失可配对的 Compact 模板"
+        return "缺失可配对的 Support 模板"
     if provider_disabled:
         return "Provider 当前已禁用"
     if not capability_available:
@@ -780,19 +850,34 @@ def _missing_reason(
     return ""
 
 
+def _expects_fusion_ball(
+    definition: BusinessDefinition,
+    target_template: ProviderTemplateDefinition | None,
+    appearance: GalleryAppearance,
+    fusion_business_ids: set[str],
+) -> bool:
+    if not appearance.fusion_enabled or target_template is None:
+        return False
+    eligible_layout = target_template.suffix in {"Compact", "Full", "Hero"}
+    business_matches = definition.business_id in fusion_business_ids
+    return eligible_layout and business_matches
+
+
 def write_gallery_input_dataset(
     output_root: Path,
     *,
     provider_root: Path = _PROVIDER_ROOT,
     capability_root: Path = _CAPABILITY_ROOT,
+    theme_root: Path = _THEME_ROOT,
 ) -> GalleryInputManifest:
     """根据当前 Provider 和能力注册表为每个模板构建适用的 2x2 模拟输入。"""
     definitions = _load_business_definitions(provider_root)
     data_capability_ids = _load_data_capability_ids(capability_root)
     asset_capabilities = _load_asset_capabilities(capability_root)
-    compact_partners = _compact_partners(definitions, data_capability_ids)
+    support_partners = _support_partners(definitions, data_capability_ids)
     controls = load_template_controls()
     event_capabilities = _load_event_capabilities(capability_root)
+    fusion_business_ids = _load_fusion_business_ids(theme_root)
     _clear_generated_gallery_files(output_root)
     providers: list[GalleryInputProvider] = []
     for provider_slug in sorted({item.provider_slug for item in definitions}):
@@ -819,7 +904,7 @@ def write_gallery_input_dataset(
                     partner, partner_template = _partner_for_template(
                         definition,
                         target_template,
-                        compact_partners,
+                        support_partners,
                     )
                     target_name = (
                         target_template.template_id.split("@", maxsplit=1)[0]
@@ -828,78 +913,94 @@ def write_gallery_input_dataset(
                     )
                     target_slug = _kebab_case(target_name)
                     business_slug = _kebab_case(definition.business_id)
-                    case_id = (
-                        f"{provider_slug}__{business_slug}__{target_slug}__{scenario_id}"
-                    )
-                    request_relative_path = (
-                        Path("providers")
-                        / provider_slug
-                        / business_slug
-                        / target_slug
-                        / f"{scenario_id}.json"
-                    )
-                    request_payload = _request_envelope(
-                        definition,
+                    missing_reason = _missing_reason(
                         target_template,
-                        partner,
                         partner_template,
                         scenario_id,
-                        event_capabilities,
-                        asset_capabilities,
+                        capability_available=(
+                            definition.capability_id in data_capability_ids
+                        ),
+                        provider_disabled=(
+                            definition.provider_id in controls.disabled_provider_ids
+                        ),
+                        template_disabled=(
+                            target_template is not None
+                            and target_template.template_id
+                            in controls.disabled_template_ids
+                        ),
                     )
-                    request_path = output_root / request_relative_path
-                    request_path.parent.mkdir(parents=True, exist_ok=True)
-                    request_path.write_text(
-                        json.dumps(request_payload, ensure_ascii=False, indent=2) + "\n",
-                        encoding="utf-8",
-                    )
-                    cases.append(
-                        GalleryInputCase(
-                            caseId=case_id,
-                            providerId=definition.provider_id,
-                            providerName=definition.provider_name,
-                            providerSlug=provider_slug,
-                            businessId=definition.business_id,
-                            businessName=definition.business_name,
-                            scenarioId=scenario_id,
-                            scenarioName=scenario_name,
-                            expectedLayout=expected_layout,
-                            expectedTemplateSuffix=expected_suffix,
-                            targetTemplateId=(
-                                target_template.template_id
-                                if target_template is not None
-                                else ""
-                            ),
-                            targetTemplateDescription=(
-                                target_template.description
-                                if target_template is not None
-                                else ""
-                            ),
-                            partnerTemplateId=(
-                                partner_template.template_id
-                                if scenario_id == "two-contents"
-                                else ""
-                            ),
-                            requestFile=request_relative_path.as_posix(),
-                            missingReason=_missing_reason(
-                                target_template,
-                                partner_template,
-                                scenario_id,
-                                capability_available=(
-                                    definition.capability_id in data_capability_ids
-                                ),
-                                provider_disabled=(
-                                    definition.provider_id
-                                    in controls.disabled_provider_ids
-                                ),
-                                template_disabled=(
-                                    target_template is not None
-                                    and target_template.template_id
-                                    in controls.disabled_template_ids
-                                ),
-                            ),
+                    for appearance in _GALLERY_APPEARANCES:
+                        case_id = (
+                            f"{provider_slug}__{business_slug}__{target_slug}__"
+                            f"{scenario_id}__{appearance.appearance_id}"
                         )
-                    )
+                        request_relative_path = (
+                            Path("providers")
+                            / provider_slug
+                            / business_slug
+                            / target_slug
+                            / appearance.appearance_id
+                            / f"{scenario_id}.json"
+                        )
+                        request_payload = _request_envelope(
+                            definition,
+                            target_template,
+                            partner,
+                            partner_template,
+                            scenario_id,
+                            appearance,
+                            event_capabilities,
+                            asset_capabilities,
+                        )
+                        request_path = output_root / request_relative_path
+                        request_path.parent.mkdir(parents=True, exist_ok=True)
+                        request_path.write_text(
+                            json.dumps(request_payload, ensure_ascii=False, indent=2)
+                            + "\n",
+                            encoding="utf-8",
+                        )
+                        cases.append(
+                            GalleryInputCase(
+                                caseId=case_id,
+                                providerId=definition.provider_id,
+                                providerName=definition.provider_name,
+                                providerSlug=provider_slug,
+                                businessId=definition.business_id,
+                                businessName=definition.business_name,
+                                scenarioId=scenario_id,
+                                scenarioName=(
+                                    f"{appearance.appearance_name} · {scenario_name}"
+                                ),
+                                appearanceId=appearance.appearance_id,
+                                appearanceName=appearance.appearance_name,
+                                appVersion=appearance.app_version,
+                                expectsFusionBall=_expects_fusion_ball(
+                                    definition,
+                                    target_template,
+                                    appearance,
+                                    fusion_business_ids,
+                                ),
+                                expectedLayout=expected_layout,
+                                expectedTemplateSuffix=expected_suffix,
+                                targetTemplateId=(
+                                    target_template.template_id
+                                    if target_template is not None
+                                    else ""
+                                ),
+                                targetTemplateDescription=(
+                                    target_template.description
+                                    if target_template is not None
+                                    else ""
+                                ),
+                                partnerTemplateId=(
+                                    partner_template.template_id
+                                    if scenario_id == "two-contents"
+                                    else ""
+                                ),
+                                requestFile=request_relative_path.as_posix(),
+                                missingReason=missing_reason,
+                            )
+                        )
         providers.append(
             GalleryInputProvider(
                 providerId=first.provider_id,
@@ -1012,6 +1113,22 @@ def _count_a2ui_actions(messages: list[dict[str, Any]]) -> int:
     return count
 
 
+def _has_fusion_ball(messages: list[dict[str, Any]]) -> bool:
+    for message in messages:
+        update = message.get("updateComponents")
+        if not isinstance(update, dict):
+            continue
+        components = update.get("components")
+        if not isinstance(components, list):
+            continue
+        for component in components:
+            if not isinstance(component, dict):
+                continue
+            if component.get("id") == "fusionBallBackground":
+                return True
+    return False
+
+
 def _expected_action_count(scenario_id: str) -> int:
     return {
         "single-two-actions": 2,
@@ -1035,9 +1152,12 @@ class ProviderGalleryBatchRunner:
         concurrency: int = 1,
         provider_ids: set[str] | None = None,
         dry_run: bool = False,
+        model_failure_attempts: int = 2,
     ) -> GalleryRunSummary:
         if concurrency < 1:
             raise ValueError("concurrency must be at least 1")
+        if model_failure_attempts < 1:
+            raise ValueError("model_failure_attempts must be at least 1")
         manifest = load_gallery_input_manifest(input_root)
         _clear_generated_gallery_files(output_root)
         selected_providers = [
@@ -1052,24 +1172,26 @@ class ProviderGalleryBatchRunner:
         }
 
         async def execute_case(case: GalleryInputCase) -> dict[str, Any]:
-            if case.scenarioId == "two-contents":
-                return self._base_result(
-                    case,
-                    "failed",
-                    MULTI_BUSINESS_UNSUPPORTED_REASON,
-                    error_code=MULTI_BUSINESS_UNSUPPORTED_ERROR,
-                )
             if case.missingReason:
                 return self._base_result(case, "missing", case.missingReason)
             if dry_run:
                 return self._base_result(case, "not_generated", "尚未执行端到端批跑")
             async with semaphore:
-                return await self._generate_case(
-                    case,
-                    input_root,
-                    output_root,
-                    capture,
-                )
+                result: dict[str, Any] = {}
+                for _attempt in range(model_failure_attempts):
+                    result = await self._generate_case(
+                        case,
+                        input_root,
+                        output_root,
+                        capture,
+                    )
+                    retryable = result.get("status") == "failed"
+                    retryable = retryable and result.get("errorCode") == (
+                        ErrorCode.A2UI_GENERATION_FAILED.value
+                    )
+                    if not retryable:
+                        break
+                return result
 
         async def capture_save(
             store: ArtifactStore,
@@ -1154,6 +1276,17 @@ class ProviderGalleryBatchRunner:
                 generation_status=response.status.value,
             )
         messages = _parse_genui_messages(artifact.genui)
+        task_spec_app_version = artifact.taskSpec.get("appVersion")
+        if task_spec_app_version != case.appVersion:
+            return self._base_result(
+                case,
+                "failed",
+                (
+                    "TaskSpec 版本校验失败："
+                    f"期望 {case.appVersion}，实际 {task_spec_app_version!r}"
+                ),
+                generation_status=response.status.value,
+            )
         expected_action_count = _expected_action_count(case.scenarioId)
         actual_action_count = _count_a2ui_actions(messages)
         if actual_action_count != expected_action_count:
@@ -1166,6 +1299,17 @@ class ProviderGalleryBatchRunner:
                 ),
                 generation_status=response.status.value,
             )
+        fusion_ball_rendered = _has_fusion_ball(messages)
+        if fusion_ball_rendered != case.expectsFusionBall:
+            return self._base_result(
+                case,
+                "failed",
+                (
+                    "融球版本校验失败："
+                    f"期望 {case.expectsFusionBall}，实际 {fusion_ball_rendered}"
+                ),
+                generation_status=response.status.value,
+            )
         target_slug = _kebab_case(
             case.targetTemplateId.split("@", maxsplit=1)[0] or "missing-template"
         )
@@ -1174,6 +1318,7 @@ class ProviderGalleryBatchRunner:
             / case.providerSlug
             / _kebab_case(case.businessId)
             / target_slug
+            / case.appearanceId
             / f"{case.scenarioId}.json"
         )
         output_path = output_root / relative_path
@@ -1191,6 +1336,8 @@ class ProviderGalleryBatchRunner:
         result["a2uiFile"] = relative_path.as_posix()
         result["artifactDigest"] = response.artifactDigest
         result["messageCount"] = len(messages)
+        result["taskSpecAppVersion"] = task_spec_app_version
+        result["fusionBallRendered"] = fusion_ball_rendered
         return result
 
     @staticmethod
@@ -1211,6 +1358,10 @@ class ProviderGalleryBatchRunner:
             "businessName": case.businessName,
             "scenarioId": case.scenarioId,
             "scenarioName": case.scenarioName,
+            "appearanceId": case.appearanceId,
+            "appearanceName": case.appearanceName,
+            "appVersion": case.appVersion,
+            "expectsFusionBall": case.expectsFusionBall,
             "expectedLayout": case.expectedLayout,
             "expectedTemplateSuffix": case.expectedTemplateSuffix,
             "targetTemplateId": case.targetTemplateId,
@@ -1222,6 +1373,8 @@ class ProviderGalleryBatchRunner:
             "a2uiFile": "",
             "artifactDigest": "",
             "messageCount": 0,
+            "taskSpecAppVersion": "",
+            "fusionBallRendered": False,
             "errorCode": error_code,
             "errorMessage": error_message,
         }
@@ -1268,6 +1421,7 @@ async def generate_provider_gallery(
     concurrency: int = 1,
     provider_ids: set[str] | None = None,
     dry_run: bool = False,
+    model_failure_attempts: int = 2,
 ) -> GalleryRunSummary:
     """创建共享模型运行时并执行一次完整 Provider 画廊批跑。"""
     runtime = ModelExecutionRuntime()
@@ -1280,6 +1434,7 @@ async def generate_provider_gallery(
             concurrency=concurrency,
             provider_ids=provider_ids,
             dry_run=dry_run,
+            model_failure_attempts=model_failure_attempts,
         )
     finally:
         await runtime.aclose()

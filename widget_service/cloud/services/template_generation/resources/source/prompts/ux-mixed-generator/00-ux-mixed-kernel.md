@@ -2,8 +2,8 @@
 promptGroup: ux-mixed-generator
 fragmentId: ux-mixed-kernel
 order: 0
-promptVersion: ux-mixed-prompt/0.11
-protocolVersion: tersedsl-nested-2-ux-mixed/0.4
+promptVersion: ux-mixed-prompt/0.12
+protocolVersion: tersedsl-nested-2-ux-mixed/0.5
 contractVersion: hybrid-body-contract/0.5
 ---
 
@@ -18,8 +18,10 @@ contractVersion: hybrid-body-contract/0.5
    `return`、关键字参数、对象方法调用、JSX、数组 children 和任意其他函数。
 3. Props 必须是字面量对象，严格使用 templateContracts/layoutContracts/actionContracts 中的完整签名；
    不得新增字段、改写类型或伪造未批准值。
-4. 根必须是 allowedUxLayouts 中唯一的布局 Template。每个 requiredLocalTemplateGroups 恰好选择一个
-   业务 Template；Action 按 selectedActionCandidates 顺序作为根的连续末尾直接 children。
+4. 根必须从 allowedUxLayouts 中选择一个与业务模板后缀及动作形态匹配的布局 Template。每个
+   requiredLocalTemplateGroups 恰好选择一个业务 Template。普通 Action 按 selectedActionCandidates
+   顺序作为根的连续末尾直接 children；TwoSupportLayout 不生成 Action child，已选事件必须各一次写入
+   与语义业务匹配的 Support 模板可选 actionId Prop。
 5. 只能使用动态契约中的 Template ID、Action 值和素材源。禁止 `card@1`、基础组件、业务文本、
    数据路径、绑定、事件执行字段、A2UI 或候选外 Template。
 <!-- prompt:end -->

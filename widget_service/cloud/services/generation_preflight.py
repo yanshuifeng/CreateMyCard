@@ -11,12 +11,7 @@ from api.schemas import CandidateEventCandidate, GenerateWidgetCardRequest
 from app.logger import json_for_log, logger
 from core.errors import ErrorCode
 from core.json_pointer import parse_json_pointer
-from models.capability import (
-    AssetCapability,
-    DataCapability,
-    EventCapability,
-    RemovedCapability,
-)
+from models.capability import AssetCapability, DataCapability, RemovedCapability
 from models.generation import CandidateDataBinding, EventAction
 from models.preflight import (
     AgentAction,
@@ -37,6 +32,9 @@ _DATA_INPUT_SOURCE = "getDataCapabilitySchemas.dataCapabilities[].inputSchema"
 _DATA_OUTPUT_SOURCE = "getDataCapabilitySchemas.dataCapabilities[].outputSchema"
 _EVENT_SOURCE = "getWidgetCapabilityOverview.eventCapabilities[].actionTemplate"
 _ASSET_SOURCE = "getWidgetCapabilityOverview.assetCandidates[]"
+_LEGACY_WEATHER_URI = (
+    "hww://www.huawei.com/totemweather?enterType=share&cityCode="
+)
 
 
 class GenerationPreflight:
@@ -319,12 +317,6 @@ class GenerationPreflight:
                 capability_id,
                 issues,
             )
-            self._append_event_binding_template_issues(
-                action.args,
-                capability,
-                base_path,
-                issues,
-            )
             template_reference_locations = self._data_reference_locations(
                 capability.actionTemplate.args
             )
@@ -332,6 +324,13 @@ class GenerationPreflight:
                 path for path, _location in template_reference_locations
             }
             actual_reference_locations = self._data_reference_locations(action.args)
+            actual_reference_locations.extend(
+                self._legacy_event_reference_locations(
+                    capability_id,
+                    action.args,
+                    template_reference_locations,
+                )
+            )
             allowed_actual_paths = self._append_event_reference_issues(
                 template_reference_locations,
                 actual_reference_locations,
@@ -446,71 +445,6 @@ class GenerationPreflight:
             return invalid_values
         return []
 
-    def _append_event_binding_template_issues(
-        self,
-        actual_args: dict[str, Any],
-        capability: EventCapability,
-        base_path: str,
-        issues: list[PreflightIssue],
-    ) -> None:
-        for argument in capability.dynamicArguments:
-            template_value = self._pointer_value(
-                capability.actionTemplate.args,
-                argument.path,
-            )
-            actual_value = self._pointer_value(actual_args, argument.path)
-            if template_value is _MISSING or actual_value is _MISSING:
-                continue
-            template_references = self._data_reference_locations(template_value)
-            if not template_references:
-                continue
-            normalized = self._normalized_event_binding_template(
-                actual_value,
-                template_value,
-            )
-            if normalized == template_value:
-                continue
-            issues.append(
-                self._invalid_issue(
-                    "EVENT_DATA_TEMPLATE_MISMATCH",
-                    f"{base_path}/action/args{argument.path}",
-                    "事件动态参数改写了注册动作模板中的固定结构。",
-                    "只替换 actionTemplate 数据路径中的数组索引，保留其它内容不变",
-                    capability.id,
-                    actual_value=actual_value,
-                    repair_instruction=(
-                        "从本轮能力概述重新复制完整 actionTemplate；"
-                        "仅将动态参数说明中的 i 替换为实际数组索引。"
-                    ),
-                    reference_source=_EVENT_SOURCE,
-                )
-            )
-
-    @classmethod
-    def _normalized_event_binding_template(
-        cls,
-        actual_value: Any,
-        template_value: Any,
-    ) -> str | None:
-        if not isinstance(actual_value, str) or not isinstance(template_value, str):
-            return None
-        actual_references = expression_references(actual_value)
-        template_references = expression_references(template_value)
-        if len(actual_references) != len(template_references):
-            return None
-        normalized = actual_value
-        for actual_path, template_path in zip(
-            actual_references,
-            template_references,
-            strict=True,
-        ):
-            if not cls._event_reference_matches(actual_path, template_path):
-                return None
-            actual_marker = "${" + actual_path + "}"
-            template_marker = "${" + template_path + "}"
-            normalized = normalized.replace(actual_marker, template_marker, 1)
-        return normalized
-
     def _append_event_reference_issues(
         self,
         template_references: list[tuple[str, str]],
@@ -572,6 +506,22 @@ class GenerationPreflight:
                 )
             )
         return allowed_actual_paths
+
+    @staticmethod
+    def _legacy_event_reference_locations(
+        capability_id: str,
+        actual_args: dict[str, Any],
+        template_references: list[tuple[str, str]],
+    ) -> list[tuple[str, str]]:
+        is_weather_event = capability_id == "event.open.weather"
+        uses_legacy_uri = actual_args.get("uri") == _LEGACY_WEATHER_URI
+        if not is_weather_event or not uses_legacy_uri:
+            return []
+        return [
+            (data_path, relative_path)
+            for data_path, relative_path in template_references
+            if relative_path == "/uri"
+        ]
 
     def _resolve_assets(
         self,
@@ -842,29 +792,11 @@ class GenerationPreflight:
         ):
             template_is_array_placeholder = template_part == "i"
             actual_is_array_index = actual_part.isdigit()
-            if template_is_array_placeholder and not actual_is_array_index:
-                return False
-            if not template_is_array_placeholder and actual_part != template_part:
+            if actual_part != template_part and not (
+                template_is_array_placeholder and actual_is_array_index
+            ):
                 return False
         return True
-
-    @staticmethod
-    def _pointer_value(value: Any, pointer: str) -> Any:
-        parts = parse_json_pointer(pointer)
-        if parts is None:
-            return _MISSING
-        current = value
-        for part in parts:
-            if isinstance(current, dict):
-                current = current.get(part, _MISSING)
-            elif isinstance(current, list) and part.isdigit():
-                index = int(part)
-                current = current[index] if index < len(current) else _MISSING
-            else:
-                return _MISSING
-            if current is _MISSING:
-                return _MISSING
-        return current
 
     @classmethod
     def _event_dependency_state(

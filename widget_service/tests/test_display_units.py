@@ -81,6 +81,65 @@ def _dsl(content: str, *, sibling_units: int = 0) -> str:
     )
 
 
+def _wrapped_value_dsl(
+    content: str,
+    *,
+    row_has_extra_child: bool = False,
+    divider_before_unit: bool = False,
+) -> str:
+    value_row_children = ["value"]
+    components = [
+        {
+            "id": "root",
+            "component": "Column",
+            "children": ["value_row", "unit"],
+        },
+        {
+            "id": "value_row",
+            "component": "Row",
+            "children": value_row_children,
+        },
+        {"id": "value", "component": "Text", "content": content},
+        {"id": "unit", "component": "Text", "content": "%"},
+    ]
+    if row_has_extra_child:
+        value_row_children.append("label")
+        components.append(
+            {"id": "label", "component": "Text", "content": "电量"}
+        )
+    if divider_before_unit:
+        components[0]["children"] = ["value_row", "divider", "unit"]
+        components.append({"id": "divider", "component": "Divider"})
+    return "\n".join(
+        json.dumps(row, ensure_ascii=False, separators=(",", ":"))
+        for row in [
+            {
+                "version": "v0.9",
+                "createSurface": {
+                    "surfaceId": "card",
+                    "catalogId": "ohos.a2ui.extended.catalog.form",
+                },
+            },
+            {
+                "version": "v0.9",
+                "updateComponents": {
+                    "surfaceId": "card",
+                    "root": "root",
+                    "components": components,
+                },
+            },
+            {
+                "version": "v0.9",
+                "updateDataModel": {
+                    "surfaceId": "card",
+                    "path": "/",
+                    "value": {"data": {"battery": {"level": 68}}},
+                },
+            },
+        ]
+    )
+
+
 def test_task_spec_builder_does_not_project_display_unit_metadata():
     capability = _capability(unit_included=False)
     task_spec = TaskSpecBuilder().build(
@@ -185,3 +244,56 @@ def test_validator_accepts_raw_number_with_separate_unit_text():
     )
 
     assert not reporter.has_code("DISPLAY_UNIT_MISSING", "DISPLAY_UNIT_DUPLICATED")
+
+
+def test_validator_accepts_unit_after_single_value_row_wrapper():
+    reporter = validate_card(
+        artifact={
+            "genui": _wrapped_value_dsl("{{ ${/data/battery/level} }}"),
+            "cardSpec": _card_spec(),
+            "effectiveCapabilities": {
+                "data": [_capability(unit_included=False).model_dump(mode="json")]
+            },
+        }
+    )
+
+    assert not reporter.has_code("DISPLAY_UNIT_MISSING", "DISPLAY_UNIT_DUPLICATED")
+
+
+def test_validator_reports_duplicate_unit_after_single_value_row_wrapper():
+    reporter = validate_card(
+        artifact={
+            "genui": _wrapped_value_dsl("{{ ${/data/battery/level} }}"),
+            "cardSpec": _card_spec(),
+            "effectiveCapabilities": {
+                "data": [_capability(unit_included=True).model_dump(mode="json")]
+            },
+        }
+    )
+
+    assert reporter.has_code("DISPLAY_UNIT_DUPLICATED")
+
+
+def test_validator_does_not_cross_complex_or_non_adjacent_wrappers():
+    variants = [
+        _wrapped_value_dsl(
+            "{{ ${/data/battery/level} }}",
+            row_has_extra_child=True,
+        ),
+        _wrapped_value_dsl(
+            "{{ ${/data/battery/level} }}",
+            divider_before_unit=True,
+        ),
+    ]
+
+    for genui in variants:
+        reporter = validate_card(
+            artifact={
+                "genui": genui,
+                "cardSpec": _card_spec(),
+                "effectiveCapabilities": {
+                    "data": [_capability(unit_included=False).model_dump(mode="json")]
+                },
+            }
+        )
+        assert reporter.has_code("DISPLAY_UNIT_MISSING")

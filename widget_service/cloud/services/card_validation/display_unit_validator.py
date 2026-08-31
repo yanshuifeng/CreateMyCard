@@ -124,4 +124,28 @@ class DisplayUnitValidator(BaseValidator):
                 ):
                     break
                 sibling_ids.add(child_id)
+            parent_id = parent.get("id")
+            is_single_value_row = (
+                parent.get("component") == "Row"
+                and children == [component_id]
+                and isinstance(parent_id, str)
+            )
+            if not is_single_value_row:
+                continue
+            for grandparent in parents_by_child.get(parent_id, []):
+                grandparent_children = grandparent.get("children")
+                if not isinstance(grandparent_children, list):
+                    continue
+                parent_index = grandparent_children.index(parent_id)
+                unit_index = parent_index + 1
+                if unit_index >= len(grandparent_children):
+                    continue
+                unit_id = grandparent_children[unit_index]
+                if not isinstance(unit_id, str):
+                    continue
+                if static_text_matches_rule(
+                    components_by_id.get(unit_id, {}).get("content"),
+                    rule,
+                ):
+                    sibling_ids.add(unit_id)
         return len(sibling_ids)

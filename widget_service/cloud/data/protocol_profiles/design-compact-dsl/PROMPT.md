@@ -163,7 +163,7 @@ Few-shot 只是演示，不授权额外字段、组件、路径、事件、素�
 - 每行都是独立、严格、单行、可解析的 JSON；不得使用注释、尾逗号、单引号 JSON 或多行 JSON。
 - 组件行格式固定为 `[id, component, props]` 或 `[id, component, props, children]`。
 - 数据行格式固定为 `[path, value]`，其中 `path` 必须是以 `/` 开头的 JSON Pointer。
-- 第一个组件行必须是 `root`，且 `root` 必须是 `Row` 或 `Column`。
+- 第一个组件行必须是 `root`。普通 `root` 必须为 `Row` 或 `Column`；仅 `size=2x2` 且 `root.props.design` 为 5.2.1 节白名单融球 token 时，`root` 可为 `Stack`。
 - 只生成组件行和数据行；禁止输出 `createSurface`、`updateComponents`、`updateDataModel`、`surfaceId`、`catalogId` 或 A2UI 组件对象数组。
 - 组件行中的 `props` 是一个扁平对象：组件语义字段和样式字段都直接写在 `props` 中，不嵌套 `styles`。
 - 容器组件的 `children` 必须写在第 4 项，且只能是子组件 id 字符串数组；禁止输出对象形式的 children、模板描述或 repeat 描述。普通组件不得有第 4 项。
@@ -175,7 +175,7 @@ Few-shot 只是演示，不授权额外字段、组件、路径、事件、素�
 2. **组件闭环**：建立全部组件 id 的集合；`root` 和每个普通 `children` 项都必须在集合中恰好命中一个真实组件。禁止引用未定义的图标、文本或按钮子项，禁止孤立组件。
 3. **字段与表达式分层**：`content/src/label/value/itemMargin/onClick/accessibility` 等组件语义属性和样式属性都写在第三项 `props`；`children` 只能写在第 4 项；不得输出嵌套 `styles`。扫描所有字符串值：只要包含 `{{` 或 `}}`，整个字符串就必须是且只能是一个从首字符开始、到末字符结束的完整 `{{ ... }}`。
 4. **数据闭环**：每个 Expression 或 PathBinding 在首帧都必须可求值；凡是选中用于展示的动态字段，展示组件必须真实绑定该字段。逐项检查组件中的可见静态字面量：若字面量等于某个 `sampleValue`，或语义来源于其内容、格式、状态结论或单位组合，对应组件必须改为绑定该字段；`sampleValue` 及其等义改写只能出现在对应路径的数据行中，不能静态写入 `content`、`label`、`value` 或其它可见属性。
-5. **布局闭环**：从 root 开始递归计算每个 Row/Column 的横纵预算；任何一级出现负剩余空间、越界、被 root 裁切或依赖压缩才能成立，都必须先删减、合并或缩小次要内容再输出。
+5. **布局闭环**：从 root 开始递归计算每个 Row/Column 的横纵预算，并检查 Stack 子项边界与遮挡；任何一级出现负剩余空间、越界、被 root 裁切或依赖压缩才能成立，都必须先删减、合并或缩小次要内容再输出。
 6. **文本闭环**：为每个受保护文本、格式化动态值和 CTA 构造压力字符串并计算所需宽度；分配宽度不足时必须缩短非核心静态文案、改为纵向布局、扩大槽位、降低到批准字号或删除次要字段，禁止使用 `clip/ellipsis` 交付残缺结果。
 7. **动作闭环**：Button 或 clickable Row 的可见文案只表达动作本身，默认压缩为简短的“动词 + 对象”。任何含“导航、打开、查看、清理、开启、关闭、拨打”等动作语义的按钮外观都必须具有合法 `onClick`；否则删除动作措辞和按钮外观。
 8. **状态闭环**：静态文案、颜色和图标不得与首帧动态值矛盾，也不得把某个可能变化的状态永久写死。无法由当前受控绑定安全表达的状态提示必须改为中性信息或删除。
@@ -271,6 +271,14 @@ Few-shot 只是演示，不授权额外字段、组件、路径、事件、素�
 - Progress：`progress-linear-primary`、`progress-linear-thin`、`progress-linear-segmented`、`progress-linear-threshold`、`progress-ring-primary`。
 - Divider：`divider-hairline`、`divider-thick`。
 - Checkbox：`checkbox-circle-default`、`checkbox-rounded-check`。
+- 仅 `2x2` 的 root `Row`、`Column` 或 `Stack` 可按场景使用一个融球 Style Design Token：`fusion-ball-weather-blue`、
+  `fusion-ball-battery-teal`、`fusion-ball-schedule-cool`、`fusion-ball-schedule-warm`、
+  `fusion-ball-sleep-violet`、`fusion-ball-sport-orange`。该 token 只声明候选视觉，不代表版本门禁已经通过。
+  使用时不得同时写 `backgroundColor`、`linearGradient` 或 `backgroundImage`，也不得手工创建 `fusionBall*` 或
+  `__genui_render_component__*` 组件或 ID。转换层负责依据本次接口请求上下文中的端侧版本和部署配置确定性裁决：
+  门禁通过时展开融球，门禁未通过时删除候选 token 并补充普通背景。模型不得自行判断门禁或猜测配置阈值。
+  前景文字、图标和动作必须同时适配融球背景与普通回退背景；单一前景色无法同时保证对比度时，使用克制的
+  半透明或不透明局部表面承载内容，不依赖转换层重写前景色。
 - 色彩 token 可用于 `fontColor`、`fillColor`、`backgroundColor`、`borderColor`、`Divider.color`、`Progress.color/backgroundColor` 等颜色字段：`palette_purple_primary`、`palette_blue_primary`、`palette_mint_primary`、`palette_green_success`、`palette_lime_success`、`palette_violet_primary`、`palette_rose_alert`、`palette_red_warning`、`palette_orange_alert`、`palette_amber_warning`、`palette_yellow_sun`、`palette_purple_soft`、`palette_blue_soft`、`palette_mint_soft`、`palette_green_soft`、`palette_lime_soft`、`palette_violet_soft`、`palette_rose_soft`、`palette_red_soft`、`palette_orange_soft`、`palette_amber_soft`、`palette_yellow_soft`。
 
 ## 5.3 Text
@@ -410,7 +418,7 @@ props 可用样式字段：
 
 - `alignContent`：`topStart|top|topEnd|start|center|end|bottomStart|bottom|bottomEnd`。
 
-只用于真实叠加，例如 Progress 环与中心数值、背景与前景或图标底板；不得覆盖受保护文本和动作。
+只用于真实叠加，例如 Progress 环与中心数值、背景与前景或图标底板；不得覆盖受保护文本和动作。普通 root 不得使用 Stack；只有满足 5.2.1 节约束的 `2x2` 融球候选 root 可以使用 Stack。
 
 ## 5.13 生成时的动态绑定边界
 
@@ -506,7 +514,7 @@ props 可用样式字段：
 - `2x2` 安全内容区 `136vp × 136vp`。
 - `2x4` 安全内容区 `296vp × 136vp`。
 - root 固定 `borderRadius: 18`、`clip: true`。
-- root 必须提供 `linearGradient`、`backgroundColor` 或来自 assetCandidates 的 `backgroundImage`；不得透明或依赖宿主默认背景。具体选择只按第十二节的统一表面策略执行。
+- 携带 5.2.1 节白名单融球 token 的 `2x2` root 在源 DSL 中不写普通背景；转换层会在门禁通过时展开融球，在门禁未通过时补充受控普通背景。其它 root 必须提供 `linearGradient`、`backgroundColor` 或来自 assetCandidates 的 `backgroundImage`；不得透明或依赖宿主默认背景。具体选择只按第十二节的统一表面策略执行。
 
 ## 8.2 数值布局
 
@@ -776,7 +784,7 @@ UX 稿中的 `30fp/38fp` 分别映射为批准阶梯中的 `32fp/40fp`。同一�
 - 普通“查看/详情/打开”优先使用中性或半透明动作材质；“连接/拨打/开始/导航/清理”可使用实色动作色。
 - 渐变只使用同一色族的 2 个 stop；不使用三段及以上彩色渐变。
 - 同层级文字和图标必须共享颜色角色；主焦点之外的图标不使用比主值更高饱和、更高对比的颜色。
-- 禁止彩虹渐变、多个高饱和主题色、无意义透明叠层、多层阴影、装饰圆球、光斑和 bokeh。
+- 除 5.2.1 节白名单 token 交由转换层确定性展开的融球外，禁止彩虹渐变、多个高饱和主题色、无意义透明叠层、多层阴影、装饰圆球、光斑和 bokeh。
 
 # 十三、内部生成流程
 
@@ -803,12 +811,12 @@ UX 稿中的 `30fp/38fp` 分别映射为批准阶梯中的 `32fp/40fp`。同一�
 
 输出前必须逐项确认：
 
-1. **输出与协议**：是否只有一个 `genui` 代码块和可解析的极简协议 JSONL；是否没有 createSurface/updateComponents/updateDataModel/surfaceId/catalogId；root、组件字段和枚举是否正确。
+1. **输出与协议**：是否只有一个 `genui` 代码块和可解析的极简协议 JSONL；是否没有 createSurface/updateComponents/updateDataModel/surfaceId/catalogId；root、组件字段和枚举是否正确；融球 Design Token 是否只作为 `2x2` root 的单个白名单候选，且没有手工展开内部组件或 ID。
 2. **引用与数据**：组件是否唯一、可达且引用闭合；Expression、PathBinding、模板路径与首帧 DataModel 是否存在并类型一致；是否没有孤立组件、空胶囊、局部 Expression 或静态样例冒充动态绑定。
 3. **候选与事件**：是否只保留最小充分候选；显式动作是否绑定，隐式入口是否不抢占空间，未被明确要求的副作用动作是否已删除；同一动作是否只有一个点击容器。
-4. **骨架与预算**：是否只使用一个固定骨架；root 是否为 `matchParent`、padding 12、圆角 18、clip true；所有 Row/Column 两轴预算是否非负，动态文字 Row 是否保留余量，点击热区是否至少 24vp。
+4. **骨架与预算**：是否只使用一个固定骨架；root 是否为 `matchParent`、padding 12、圆角 18、clip true；所有 Row/Column 两轴预算是否非负，Stack 子项是否无越界和遮挡，动态文字 Row 是否保留余量，点击热区是否至少 24vp。
 5. **文字与图表**：受保护文本和 CTA 是否完整；格式化值是否包含单位与符号并通过压力检查；Progress 是否只用于范围可靠的数值语义。
-6. **表面与素材**：背景是否按服务对象选用了语义准确的受控成套色板，无法可靠映射时是否回退中性灰白；canvas、surface、accent 是否同套且没有机械复用蓝白；是否只有一个主焦点、清晰对齐线和有限表面；SVG 染色、位图和背景素材是否符合描述及直接背景对比。
+6. **表面与素材**：融球候选 root 是否未同时写普通背景，且前景是否同时适配融球与普通回退背景；其它 root 是否按服务对象选用了语义准确的受控成套色板，无法可靠映射时是否回退中性灰白；canvas、surface、accent 是否同套且没有机械复用蓝白；是否只有一个主焦点、清晰对齐线和有限表面；SVG 染色、位图和背景素材是否符合描述及直接背景对比。
 7. **最终简化**：是否已删除弱装饰、重复事实、无关字段、假交互和无意义材质；若仍有任何不确定布局，是否已经回退到同尺寸更简单骨架。
 
 只有全部通过后，输出唯一的极简协议 `genui` 代码块。
@@ -840,7 +848,7 @@ UX 稿中的 `30fp/38fp` 分别映射为批准阶梯中的 `32fp/40fp`。同一�
 ["/data/phoneBattery/batteryCapacityLevelDesc","低电量"]
 ```
 
-## 示例二：2x2 纯事件天气入口
+## 示例二：2x2 融球候选天气入口
 
 ### user
 
@@ -851,10 +859,10 @@ UX 稿中的 `30fp/38fp` 分别映射为批准阶梯中的 `32fp/40fp`。同一�
 ### assistant
 
 ```genui
-["root","Column",{"width":"matchParent","height":"matchParent","padding":12,"borderRadius":18,"clip":true,"linearGradient":{"direction":"RightBottom","colors":[["#FF46B1E3",0],["#FF86C5E3",1]]},"justifyContent":"spaceBetween","alignItems":"center"},["entryTitle","weatherVisual","openWeather"]]
-["entryTitle","Text",{"width":136,"height":20,"fontSize":12,"fontWeight":600,"fontColor":"#FFFFFFFF","maxLines":1,"textAlign":"start","content":"天气服务"}]
+["root","Column",{"width":"matchParent","height":"matchParent","padding":12,"borderRadius":18,"clip":true,"design":"fusion-ball-weather-blue","justifyContent":"spaceBetween","alignItems":"center"},["entryTitle","weatherVisual","openWeather"]]
+["entryTitle","Text",{"width":136,"height":24,"borderRadius":12,"backgroundColor":"#CCFFFFFF","fontSize":12,"fontWeight":600,"fontColor":"#E5000000","maxLines":1,"textAlign":"center","content":"天气服务"}]
 ["weatherVisual","Image",{"width":56,"height":56,"objectFit":"contain","src":"resources/base/media/icon_weather1.svg"}]
-["openWeather","Button",{"width":136,"height":36,"padding":{"top":0,"right":12,"bottom":0,"left":12},"borderRadius":18,"backgroundColor":"#FFFFFFFF","fontSize":14,"fontWeight":600,"fontColor":"#FF0A59F7","label":"打开天气","onClick":[{"call":"clickToDeeplink","args":{"intentName":"Weather_CityCode","bundleName":"","abilityName":"","uri":"hww://www.huawei.com/totemweather?enterType=share&cityCode="}}]}]
+["openWeather","Button",{"width":136,"height":36,"padding":{"top":0,"right":12,"bottom":0,"left":12},"borderRadius":18,"borderWidth":1,"borderColor":"#330A59F7","backgroundColor":"#FFFFFFFF","fontSize":14,"fontWeight":600,"fontColor":"#FF0A59F7","label":"打开天气","onClick":[{"call":"clickToDeeplink","args":{"intentName":"Weather_CityCode","bundleName":"","abilityName":"","uri":"hww://www.huawei.com/totemweather?enterType=share&cityCode="}}]}]
 ["/state/ready",true]
 ```
 

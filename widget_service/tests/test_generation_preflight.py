@@ -76,6 +76,15 @@ def _weather_binding(arguments=None, output_fields=None):
     }
 
 
+def _calendar_binding(output_fields=None):
+    return {
+        "capabilityId": "GetCalendarEvents",
+        "arguments": {"futureDays": 7},
+        "writeResultTo": "/data/calendar",
+        "candidateOutputFields": output_fields or ["/events/0/title"],
+    }
+
+
 def test_preflight_accepts_weather_without_district_and_builds_specs():
     registry = CapabilityRegistry(version=REGISTRY_VERSION)
     event = registry.get_event_capability("event.open.weather")
@@ -95,6 +104,7 @@ def test_preflight_accepts_weather_without_district_and_builds_specs():
     assert result.blocking_issues == ()
     assert result.card_spec is not None
     assert result.task_spec is not None
+    assert result.task_spec.appVersion == "11.7.5.205"
     assert result.card_spec.dataBindings[0].arguments == {
         "prefectureName": "杭州市",
         "forecastDays": 1,
@@ -273,6 +283,27 @@ def test_preflight_rejects_event_call_and_fixed_argument_mismatch():
     assert "/candidateEventCandidates/0/action/args/intentName" in issue_paths
 
 
+def test_preflight_accepts_static_event_without_dynamic_arguments():
+    registry = CapabilityRegistry(version=REGISTRY_VERSION)
+    event = registry.get_event_capability("event.open.settings.dnd")
+    assert event is not None
+    assert event.dynamicArguments == []
+    request = _request(
+        candidateEventCandidates=[
+            {
+                "capabilityId": event.id,
+                "action": event.actionTemplate.model_dump(mode="json"),
+            }
+        ]
+    )
+
+    result = _run(request)
+
+    assert result.blocking_issues == ()
+    assert result.task_spec is not None
+    assert result.task_spec.eventCandidates[0].args == event.actionTemplate.args
+
+
 def test_preflight_rejects_event_data_path_outside_registered_template():
     registry = CapabilityRegistry(version=REGISTRY_VERSION)
     event = registry.get_event_capability("event.open.weather")
@@ -333,7 +364,7 @@ def test_preflight_rejects_partially_embedded_event_expression():
     assert result.task_spec is None
 
 
-def test_preflight_accepts_legacy_static_weather_event_uri():
+def test_preflight_rejects_static_weather_event_uri_without_city_binding():
     registry = CapabilityRegistry(version=REGISTRY_VERSION)
     event = registry.get_event_capability("event.open.weather")
     assert event is not None
@@ -353,9 +384,96 @@ def test_preflight_accepts_legacy_static_weather_event_uri():
 
     result = _run(request)
 
+    issue = next(
+        item
+        for item in result.blocking_issues
+        if item.code == "EVENT_DATA_REFERENCE_MISSING"
+    )
+    assert issue.path == "/candidateEventCandidates/0/action/args/uri"
+    assert result.task_spec is None
+
+
+def test_preflight_rejects_rewritten_weather_uri_template():
+    registry = CapabilityRegistry(version=REGISTRY_VERSION)
+    event = registry.get_event_capability("event.open.weather")
+    assert event is not None
+    action = event.actionTemplate.model_dump(mode="json")
+    action["args"]["uri"] = (
+        "{{ 'bad://rewritten?city=' + ${/data/weather/location/cityCode} }}"
+    )
+    request = _request(
+        candidateDataBindings=[_weather_binding()],
+        candidateEventCandidates=[
+            {
+                "capabilityId": event.id,
+                "action": action,
+            }
+        ],
+    )
+
+    result = _run(request)
+
+    issue = next(
+        item
+        for item in result.blocking_issues
+        if item.code == "EVENT_DATA_TEMPLATE_MISMATCH"
+    )
+    assert issue.path == "/candidateEventCandidates/0/action/args/uri"
+    assert result.task_spec is None
+
+
+def test_preflight_rejects_unresolved_calendar_event_index():
+    registry = CapabilityRegistry(version=REGISTRY_VERSION)
+    event = registry.get_event_capability("event.viewCalendarEvent")
+    assert event is not None
+    request = _request(
+        candidateDataBindings=[_calendar_binding()],
+        candidateEventCandidates=[
+            {
+                "capabilityId": event.id,
+                "action": event.actionTemplate.model_dump(mode="json"),
+            }
+        ],
+    )
+
+    result = _run(request)
+
+    issue = next(
+        item
+        for item in result.blocking_issues
+        if item.code == "EVENT_DATA_PATH_INVALID"
+    )
+    assert issue.path == "/candidateEventCandidates/0/action/args/params/entityId"
+    assert result.task_spec is None
+
+
+def test_preflight_accepts_resolved_calendar_event_index():
+    registry = CapabilityRegistry(version=REGISTRY_VERSION)
+    event = registry.get_event_capability("event.viewCalendarEvent")
+    assert event is not None
+    action = event.actionTemplate.model_dump(mode="json")
+    action["args"]["params"]["entityId"] = (
+        "{{ ${/data/calendar/events/1/entityId} }}"
+    )
+    request = _request(
+        candidateDataBindings=[
+            _calendar_binding(output_fields=["/events/0/title", "/events/1/title"])
+        ],
+        candidateEventCandidates=[
+            {
+                "capabilityId": event.id,
+                "action": action,
+            }
+        ],
+    )
+
+    result = _run(request)
+
     assert result.blocking_issues == ()
     assert result.task_spec is not None
-    assert result.effective_events[0].args["uri"] == action["args"]["uri"]
+    task_event = result.task_spec.eventCandidates[0]
+    entity_id = task_event.args["params"]["entityId"]
+    assert entity_id == action["args"]["params"]["entityId"]
 
 
 def test_preflight_removes_event_with_missing_data_dependency_without_blocking():

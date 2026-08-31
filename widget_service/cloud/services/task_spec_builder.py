@@ -32,7 +32,6 @@ class TaskSpecBuilder:
         effective_data_capabilities: list[DataCapability],
         event_candidates: list[EventAction],
         asset_candidates: list[AssetCapability],
-        prd_ver: str | None = None,
     ) -> TaskSpec:
         """按有效能力 outputSchema 构造传给 A2UI 模型的 TaskSpec。"""
         data_model_schema: dict[str, Any] = {"data": {}}
@@ -116,7 +115,6 @@ class TaskSpecBuilder:
         return TaskSpec(
             userQuery=user_query,
             size=size,
-            prdVer=prd_ver,
             eventCandidates=event_candidates,
             dataModelSchema=data_model_schema,
             assetCandidates=[

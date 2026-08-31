@@ -95,7 +95,6 @@ def test_preflight_accepts_weather_without_district_and_builds_specs():
     assert result.blocking_issues == ()
     assert result.card_spec is not None
     assert result.task_spec is not None
-    assert result.task_spec.prdVer == "11.7.5.205"
     assert result.card_spec.dataBindings[0].arguments == {
         "prefectureName": "杭州市",
         "forecastDays": 1,
@@ -111,12 +110,12 @@ def test_preflight_accepts_weather_without_district_and_builds_specs():
 
 
 @pytest.mark.parametrize("prd_ver", ["CreateMyCard/11.7.5.206", "", None])
-def test_preflight_preserves_request_prd_version(prd_ver):
+def test_preflight_does_not_copy_request_prd_version_into_task_spec(prd_ver):
     result = _run(_request(prdVer=prd_ver))
 
     assert result.blocking_issues == ()
     assert result.task_spec is not None
-    assert result.task_spec.prdVer == prd_ver
+    assert "prdVer" not in result.task_spec.model_dump(mode="json")
 
 
 def test_preflight_reports_exact_missing_weather_argument_path():

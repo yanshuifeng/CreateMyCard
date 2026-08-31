@@ -118,7 +118,7 @@ async def _repair_compact_dsl_source(
         "id": design_profile_id,
         "format": _MODEL_FORMAT,
     }
-    task_spec_value = source.task_spec.model_dump(mode="json")
+    task_spec_value = source.task_spec.model_dump(mode="json", exclude_none=True)
     processing_context = DslProcessingContext(
         size=size,
         card_spec=source.artifact.cardSpec,

@@ -260,13 +260,18 @@ SourceArtifactRepository.load(sourceArtifactUrl)
 → /data/weather/daily/0/condition
 ```
 
-生成的 TaskSpec 示例：
+生成的 TaskSpec 保持 `task-spec-v1` 五字段契约。新版包络路由从本次接口 `request.deviceInfo.prdVer` 提取版本
+并映射到内部生成请求，生成服务在请求边界结合 `CONFIG.fusion_ball_min_prd_version` 计算融球门禁；配置或
+请求版本缺失、为空、
+非法，或者请求版本低于配置版本时关闭。请求版本不进入 LLM Prompt 消息中的 TaskSpec，也不写入 TaskSpec
+或 artifact 中的 TaskSpec。
+
+示例：
 
 ```json
 {
   "userQuery": "帮我做一个通勤天气卡片",
   "size": "2x4",
-  "prdVer": "11.7.5.206",
   "eventCandidates": [
     {
       "id": "event.open.weather",

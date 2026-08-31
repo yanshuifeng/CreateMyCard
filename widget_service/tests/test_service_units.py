@@ -2222,12 +2222,10 @@ def test_task_spec_builder_projects_valid_object_and_array_fields():
     assert set(task_spec.model_dump()) == {
         "userQuery",
         "size",
-        "prdVer",
         "eventCandidates",
         "dataModelSchema",
         "assetCandidates",
     }
-    assert task_spec.prdVer is None
     assert task_spec.assetCandidates[0]["id"] == "asset.drop_1"
 
 
@@ -2591,7 +2589,6 @@ def test_design_compact_create_prompt_is_plain_task_spec_json():
         effective_data_capabilities=[],
         event_candidates=[event],
         asset_candidates=[],
-        prd_ver="11.7.5.206",
     )
 
     prompt = PromptBuilder().build_design_compact(task_spec, "design rules")
@@ -2601,13 +2598,11 @@ def test_design_compact_create_prompt_is_plain_task_spec_json():
     assert set(payload) == {
         "userQuery",
         "size",
-        "prdVer",
         "eventCandidates",
         "dataModelSchema",
         "assetCandidates",
     }
     assert payload["userQuery"] == "生成天气卡片"
-    assert payload["prdVer"] == "11.7.5.206"
     assert payload["eventCandidates"] == [
         {
             "id": "event.open.weather",
@@ -4294,7 +4289,6 @@ async def test_artifact_store_returns_structured_save_result(tmp_path, monkeypat
         taskSpec={
             "userQuery": "生成天气卡片",
             "size": "2x4",
-            "prdVer": None,
             "eventCandidates": [],
             "dataModelSchema": {"data": {}},
             "assetCandidates": [],
@@ -4305,7 +4299,7 @@ async def test_artifact_store_returns_structured_save_result(tmp_path, monkeypat
             createdAt=1,
         ),
     )
-    assert artifact.meta.taskSpecVersion == "task-spec-v2"
+    assert artifact.meta.taskSpecVersion == "task-spec-v1"
     design_compact_dsl = (
         '["root","Column",{"width":"matchParent","height":140},[]]'
     )
@@ -4534,7 +4528,6 @@ def test_artifact_validator_rejects_legacy_component_shape():
         taskSpec={
             "userQuery": "生成天气卡片",
             "size": "2x4",
-            "prdVer": None,
             "eventCandidates": [],
             "dataModelSchema": {"data": {}},
             "assetCandidates": [],

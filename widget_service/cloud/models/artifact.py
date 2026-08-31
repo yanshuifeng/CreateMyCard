@@ -20,7 +20,7 @@ class GenerationPlan(BaseModel):
 
 class ArtifactMeta(BaseModel):
     apiVersion: str = "v1"
-    taskSpecVersion: str = "task-spec-v2"
+    taskSpecVersion: str = "task-spec-v1"
     cardSpecVersion: str = "card-spec-v1"
     dslProtocolVersion: str = "v0.9"
     skillVersion: str = "skill-widget-v1"

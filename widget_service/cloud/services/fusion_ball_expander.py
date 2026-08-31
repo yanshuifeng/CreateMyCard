@@ -127,10 +127,10 @@ def fusion_ball_palette_for_root(
     components: list[Any],
     *,
     size: str,
-    prd_ver: Any,
+    enable_fusion_ball: bool,
 ) -> FusionBallPalette | None:
     """Resolve a root fusion Style Design Token under the request version gate."""
-    if size != "2x2" or not fusion_ball_enabled(prd_ver):
+    if size != "2x2" or not enable_fusion_ball:
         return None
     roots = [item for item in components if _component_id(item) == "root"]
     if len(roots) != 1:

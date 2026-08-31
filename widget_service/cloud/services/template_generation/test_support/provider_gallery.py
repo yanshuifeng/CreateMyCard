@@ -1185,17 +1185,6 @@ class ProviderGalleryBatchRunner:
                 generation_status=response.status.value,
             )
         messages = _parse_genui_messages(artifact.genui)
-        task_spec_prd_ver = artifact.taskSpec.get("prdVer")
-        if task_spec_prd_ver != case.prdVer:
-            return self._base_result(
-                case,
-                "failed",
-                (
-                    "TaskSpec 版本校验失败："
-                    f"期望 {case.prdVer}，实际 {task_spec_prd_ver!r}"
-                ),
-                generation_status=response.status.value,
-            )
         expected_action_count = _expected_action_count(case.scenarioId)
         actual_action_count = _count_a2ui_actions(messages)
         if actual_action_count != expected_action_count:
@@ -1245,8 +1234,6 @@ class ProviderGalleryBatchRunner:
         result["a2uiFile"] = relative_path.as_posix()
         result["artifactDigest"] = response.artifactDigest
         result["messageCount"] = len(messages)
-        result["taskSpecPrdVer"] = task_spec_prd_ver
-        result["taskSpecAppVersion"] = task_spec_prd_ver
         result["fusionBallRendered"] = fusion_ball_rendered
         return result
 
@@ -1284,8 +1271,6 @@ class ProviderGalleryBatchRunner:
             "a2uiFile": "",
             "artifactDigest": "",
             "messageCount": 0,
-            "taskSpecPrdVer": "",
-            "taskSpecAppVersion": "",
             "fusionBallRendered": False,
             "errorCode": error_code,
             "errorMessage": error_message,

@@ -113,7 +113,6 @@ class _GalleryService:
             taskSpec={
                 "userQuery": request.userQuery,
                 "size": "2x2",
-                "prdVer": request.prdVer,
                 "eventCandidates": [],
                 "dataModelSchema": {"data": {}},
                 "assetCandidates": [],
@@ -534,15 +533,7 @@ async def test_gallery_runner_generates_fusion_and_standard_in_the_same_provider
     cases = output_manifest["providers"][0]["cases"]
     assert [case["appearanceId"] for case in cases] == ["standard", "fusion"]
     assert [case["fusionBallRendered"] for case in cases] == [False, True]
-    assert [case["taskSpecPrdVer"] for case in cases] == [
-        DEFAULT_PRD_VERSION,
-        FUSION_PRD_VERSION,
-    ]
     assert [case["appVersion"] for case in cases] == [
-        DEFAULT_PRD_VERSION,
-        FUSION_PRD_VERSION,
-    ]
-    assert [case["taskSpecAppVersion"] for case in cases] == [
         DEFAULT_PRD_VERSION,
         FUSION_PRD_VERSION,
     ]

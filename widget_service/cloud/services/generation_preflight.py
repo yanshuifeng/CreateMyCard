@@ -84,7 +84,6 @@ class GenerationPreflight:
                 data_capabilities,
                 effective_events,
                 effective_assets,
-                request.prdVer,
             )
 
         result = GenerationPreflightResult(

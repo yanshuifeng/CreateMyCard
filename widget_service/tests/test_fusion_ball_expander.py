@@ -121,7 +121,7 @@ def test_compact_root_fusion_design_token_expands_and_marks_content(root_type) -
     a2ui = convert_compact_dsl_to_a2ui(
         compact_dsl,
         size="2x2",
-        prd_ver="11.7.5.206",
+        enable_fusion_ball=True,
     )
     messages = [json.loads(line) for line in a2ui.splitlines()]
     components = {
@@ -140,10 +140,7 @@ def test_compact_root_fusion_design_token_expands_and_marks_content(root_type) -
     assert components["fusionBallMedium"]["styles"]["backgroundColor"] == "#FF2B65D9"
 
 
-@pytest.mark.parametrize("prd_ver", ["11.7.5.205", "0", "invalid", None])
-def test_compact_root_fusion_design_token_stays_off_for_unsupported_version(
-    prd_ver,
-) -> None:
+def test_compact_root_fusion_design_token_stays_off_when_request_gate_is_disabled() -> None:
     content_id = build_fusion_ball_content_id("root")
     compact_dsl = "\n".join(
         (
@@ -157,7 +154,7 @@ def test_compact_root_fusion_design_token_stays_off_for_unsupported_version(
     a2ui = convert_compact_dsl_to_a2ui(
         compact_dsl,
         size="2x2",
-        prd_ver=prd_ver,
+        enable_fusion_ball=False,
     )
     messages = [json.loads(line) for line in a2ui.splitlines()]
     component_ids = {
@@ -226,13 +223,13 @@ def test_compact_fallback_processor_expands_fusion_design_token() -> None:
         task_spec={
             "userQuery": "天气卡片",
             "size": "2x2",
-            "prdVer": "11.7.5.206",
             "eventCandidates": [],
             "dataModelSchema": {"data": {}},
             "assetCandidates": [],
         },
         protocol_profile={"version": "v0.9"},
         design_profile_id="design-compact-dsl",
+        enable_fusion_ball=True,
     )
 
     result = DesignCompactProcessor().process(compact_dsl, context)

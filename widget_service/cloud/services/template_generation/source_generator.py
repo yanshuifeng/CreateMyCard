@@ -7,7 +7,6 @@ from typing import Any
 
 from custom.model_runtime import ModelExecutionRuntime
 from models.generation import CandidateDataBinding, ModelRequestContext, TaskSpec
-from services.fusion_ball_expander import fusion_ball_enabled
 from services.generation_pipeline import DslProcessorKind
 from services.template_generation.facade import request_template_source_dsl
 
@@ -16,6 +15,7 @@ from services.template_generation.facade import request_template_source_dsl
 class TemplateSourceGenerator:
     """保存入口差异，并由策略层补齐模板源生成所需的运行时上下文。"""
 
+    enable_fusion_ball: bool = False
     trusted_template_candidate_ids: tuple[str, ...] = ()
     trusted_template_action_ids: tuple[str, ...] = ()
     trusted_template_sample_overrides: dict[str, Any] = field(default_factory=dict)
@@ -37,7 +37,6 @@ class TemplateSourceGenerator:
             raise RuntimeError("TemplateSourceGenerator protocol profile is not configured")
         if self.model_request_context is None:
             raise RuntimeError("TemplateSourceGenerator model context is not configured")
-        enable_fusion_ball = fusion_ball_enabled(task_spec.prdVer)
         return await request_template_source_dsl(
             task_spec,
             card_spec,
@@ -46,7 +45,7 @@ class TemplateSourceGenerator:
             protocol_profile=self.protocol_profile,
             model_runtime=self.model_runtime,
             model_request_context=self.model_request_context,
-            enable_fusion_ball=enable_fusion_ball,
+            enable_fusion_ball=self.enable_fusion_ball,
             trusted_template_candidate_ids=self.trusted_template_candidate_ids,
             trusted_template_action_ids=self.trusted_template_action_ids,
             trusted_template_sample_overrides=self.trusted_template_sample_overrides,

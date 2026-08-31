@@ -94,9 +94,12 @@ flowchart TD
 2. 编译 `.cardtpl`，校验模板 ID、Props、数据路径、children 槽位和组件闭包。
 3. 从 `provider.json#templates` 派生“业务 -> Template -> 数据能力 -> Provider”索引。
 4. 应用 `disabledProviderIds` 和 `disabledTemplateIds`，确保禁用项不进入首层和二层。
-5. 生产入口按 TaskSpec `prdVer` 与 `CONFIG.fusion_ball_min_prd_version` 裁决，配置或请求版本缺失、非法、
-   低于配置版本时关闭；验证入口未显式指定时也关闭。只有调用方传入 `enable_fusion_ball=true` 时才构造
-   包含融球 Theme 的请求级视图。关闭时移除所有 `fusionBallStyle` Theme 及其首层规则和场景索引。
+5. 新版包络路由从本次接口 `request.deviceInfo.prdVer` 提取版本并映射到内部生成请求，生成服务在请求边界结合
+   `CONFIG.fusion_ball_min_prd_version` 裁决；配置或请求版本缺失、非法、低于配置版本时关闭，验证入口未显式
+   指定时也关闭。请求版本不进入 LLM Prompt 消息中的 TaskSpec，也不写入五字段 `task-spec-v1` 或 artifact
+   中的 TaskSpec。只有调用
+   方传入 `enable_fusion_ball=true` 时才构造包含融球 Theme 的请求级视图；关闭时移除所有
+   `fusionBallStyle` Theme 及其首层规则和场景索引。
 6. 建立字段 Search 索引，供 `retrieve_template_variants()` 查找可覆盖候选。
 
 Provider Template 和业务分组只从各自 `provider.json` 与 `.cardtpl` 派生；Theme 只从

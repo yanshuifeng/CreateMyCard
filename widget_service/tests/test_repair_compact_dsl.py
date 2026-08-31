@@ -28,7 +28,6 @@ _INVALID_COMPACT_DSL = "\n".join(
 _TASK_SPEC = {
     "userQuery": "生成一张修复测试卡片",
     "size": "2x2",
-    "prdVer": None,
     "eventCandidates": [],
     "dataModelSchema": {},
     "assetCandidates": [],

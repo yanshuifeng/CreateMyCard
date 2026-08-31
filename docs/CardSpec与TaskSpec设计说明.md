@@ -95,12 +95,13 @@ CardSpec 不复制 `outputSchema`，也不是 DataModel 本身。三者分工如
 
 ## 4. TaskSpec：A2UI 模型的受控输入
 
-TaskSpec 顶层固定为五个字段：
+TaskSpec v2 顶层固定为六个字段：
 
 | 字段 | 作用 |
 | --- | --- |
 | `userQuery` | 保留用户原始意图，帮助模型理解信息优先级与表达方式 |
 | `size` | 已由微服务确定的目标尺寸，模型不得自行升级 |
+| `prdVer` | 工具请求携带的端侧业务 API 版本，仅用于服务端配置控制的生成特性门禁 |
 | `eventCandidates` | 过滤后的可用点击动作及完整参数 |
 | `dataModelSchema` | DSL 可绑定的必要数据结构、字段说明与受控样例 |
 | `assetCandidates` | 可在 DSL 中使用的素材路径和语义说明 |
@@ -109,6 +110,7 @@ TaskSpec 顶层固定为五个字段：
 {
   "userQuery": "做一张上海天气卡片，显示温度和天气情况",
   "size": "2x2",
+  "prdVer": "11.7.5.206",
   "eventCandidates": [],
   "dataModelSchema": {
     "data": {
@@ -149,7 +151,7 @@ TaskSpec 顶层固定为五个字段：
 
 ### 4.2 不应加入的内容
 
-TaskSpec 顶层不得扩展 `cardSpec`、`rules`、`capabilitySchemas`、`dataModel`、`title`、`description`、布局或字体等字段。协议和美观规则由微服务通过模型提示词和 profile 提供，不通过 TaskSpec 私自扩展。
+TaskSpec 顶层不得扩展 `cardSpec`、`rules`、`capabilitySchemas`、`dataModel`、`title`、`description`、布局或字体等字段。协议和美观规则由微服务通过模型提示词和 profile 提供，不通过 TaskSpec 私自扩展。`prdVer` 保留请求原值；融球门禁在实际使用边界按服务配置解析版本，不在 TaskSpec 中保存第二份规范化版本。
 
 ## 5. 两类契约如何保持一致
 
@@ -172,7 +174,7 @@ TaskSpec 顶层不得扩展 `cardSpec`、`rules`、`capabilitySchemas`、`dataMo
 - CardSpec 是否只包含最终有效的数据能力，且入参符合 `inputSchema`？
 - 静态卡是否省略 `dataBindings`，动态卡是否存在合法 binding？
 - 所有 `writeResultTo` 是否位于 `/data/...` 且互不冲突？
-- TaskSpec 是否严格只有五个顶层字段？
+- TaskSpec v2 是否严格只有六个顶层字段？
 - `dataModelSchema` 是否仅保留界面需要的字段，并使用脱敏样例？
 - DSL 的动态绑定和事件参数是否都可从 CardSpec、能力 schema 或 TaskSpec 投影推导？
 - 事件与素材是否只来自本次有效候选？

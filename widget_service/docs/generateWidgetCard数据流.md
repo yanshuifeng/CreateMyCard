@@ -266,6 +266,7 @@ SourceArtifactRepository.load(sourceArtifactUrl)
 {
   "userQuery": "帮我做一个通勤天气卡片",
   "size": "2x4",
+  "prdVer": "11.7.5.206",
   "eventCandidates": [
     {
       "id": "event.open.weather",

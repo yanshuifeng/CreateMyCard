@@ -103,8 +103,8 @@ def test_trusted_gallery_template_drops_runtime_only_retrieval_fields() -> None:
         requiredOutputFieldsByCapability={
             "GetPhoneBatteryInfo": (
                 "/batterySOC",
-                "/batteryTemperatureText",
                 "/batterySOCText",
+                "/batteryCapacityLevelDesc",
             )
         },
     )
@@ -112,11 +112,11 @@ def test_trusted_gallery_template_drops_runtime_only_retrieval_fields() -> None:
     restricted = restrict_query_to_preferred_templates(
         query,
         get_cardplan_registry(),
-        ("BatteryOverviewNormalPowerTemperatureIconCompact@1",),
+        ("BatteryOverviewStatusIconCompact@1",),
     )
 
     assert restricted.required_output_fields_by_capability == {
-        "GetPhoneBatteryInfo": ("/batterySOC", "/batteryTemperatureText")
+        "GetPhoneBatteryInfo": ("/batterySOCText", "/batteryCapacityLevelDesc")
     }
 
 
@@ -355,7 +355,7 @@ def test_first_layer_prompt_includes_task_fields_rules_and_action_candidates() -
         {"eventId": "event.open.weather", "call": "clickToDeeplink"}
     ]
     assert "不得为了迁就布局限制而省略" in messages[0]["content"]
-    assert "2x2 最多保留两个" in messages[0]["content"]
+    assert "2x2 模板 Search 当前只接受一个" in messages[0]["content"]
 
 
 def test_search_rejects_2x4_before_prompt_or_retrieval() -> None:
@@ -375,7 +375,7 @@ def test_search_rejects_2x4_before_prompt_or_retrieval() -> None:
         )
 
 
-def test_search_keeps_two_data_businesses_as_support_templates() -> None:
+def test_search_rejects_two_data_businesses() -> None:
     task = _task()
     task.dataModelSchema["data"]["systemMem"] = {
         "usagePercent": _field(65, "number"),
@@ -391,50 +391,40 @@ def test_search_keeps_two_data_businesses_as_support_templates() -> None:
             "/totalMemText",
         ],
     )
-    result = retrieve_template_variants(
-        TemplateRetrievalQuery(
-            themeId="family-weather-care-blue",
-            requiredOutputFieldsByCapability={
-                "ViewWeather": (
-                    "/location/districtName",
-                    "/current/temperatureText",
-                    "/current/condition",
-                    "/current/coldLevel",
-                ),
-                "GetSystemMemInfo": (
-                    "/usagePercent",
-                    "/availableMemText",
-                    "/totalMemText",
-                ),
-            },
-        ),
-        task,
-        CardPlanRegistry(),
-        (_binding(), memory),
-        {
-            "dataBindings": [
-                {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
-                {
-                    "capabilityId": "GetSystemMemInfo",
-                    "writeResultTo": "/data/systemMem",
+    with pytest.raises(TemplateRetrievalMiss, match="multiple data businesses"):
+        retrieve_template_variants(
+            TemplateRetrievalQuery(
+                themeId="family-weather-care-blue",
+                requiredOutputFieldsByCapability={
+                    "ViewWeather": (
+                        "/location/districtName",
+                        "/current/temperatureText",
+                        "/current/condition",
+                        "/current/coldLevel",
+                    ),
+                    "GetSystemMemInfo": (
+                        "/usagePercent",
+                        "/availableMemText",
+                        "/totalMemText",
+                    ),
                 },
-            ]
-        },
-    )
+            ),
+            task,
+            CardPlanRegistry(),
+            (_binding(), memory),
+            {
+                "dataBindings": [
+                    {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
+                    {
+                        "capabilityId": "GetSystemMemInfo",
+                        "writeResultTo": "/data/systemMem",
+                    },
+                ]
+            },
+        )
 
-    assert {item.component_id for item in result.component_candidates} == {
-        "ResourceUsageOverview",
-        "WeatherOverview",
-    }
-    assert result.scope.theme_id == "2x2-two-support"
-    assert all(
-        template_id.endswith("Support@1")
-        for candidate in result.component_candidates
-        for template_id in candidate.available_template_ids
-    )
 
-
-def test_search_keeps_two_support_businesses_backed_by_one_capability() -> None:
+def test_search_rejects_two_businesses_backed_by_one_capability() -> None:
     task = TaskSpec(
         userQuery="显示昨晚睡眠时长和今天步数",
         size="2x2",
@@ -467,31 +457,21 @@ def test_search_keeps_two_support_businesses_backed_by_one_capability() -> None:
         },
     )
 
-    result = retrieve_template_variants(
-        query,
-        task,
-        CardPlanRegistry(),
-        (binding,),
-        {
-            "dataBindings": [
-                {
-                    "capabilityId": "GetHealthAndSportSummary",
-                    "writeResultTo": "/data/healthSport",
-                }
-            ]
-        },
-    )
-
-    assert {item.component_id for item in result.component_candidates} == {
-        "ActivityOverview",
-        "SleepOverview",
-    }
-    assert all(
-        template_id.endswith("Support@1")
-        for candidate in result.component_candidates
-        for template_id in candidate.available_template_ids
-    )
-    assert result.scope.theme_id == "2x2-two-support"
+    with pytest.raises(TemplateRetrievalMiss, match="multiple data businesses"):
+        retrieve_template_variants(
+            query,
+            task,
+            CardPlanRegistry(),
+            (binding,),
+            {
+                "dataBindings": [
+                    {
+                        "capabilityId": "GetHealthAndSportSummary",
+                        "writeResultTo": "/data/healthSport",
+                    }
+                ]
+            },
+        )
 
 
 def test_search_allows_one_data_business_with_action() -> None:
@@ -563,6 +543,10 @@ def test_search_allows_one_data_business_with_two_actions() -> None:
     assert result.action_ids == (
         "event.open.weather",
         "event.start.navigate",
+    )
+    assert all(
+        template_id.endswith("Compact@1")
+        for template_id in result.component_candidates[0].available_template_ids
     )
 
 
@@ -716,7 +700,7 @@ def test_optional_data_is_available_but_not_required_for_second_containment() ->
     assert any(token.path == "/updatedAt" for token in record.field_tokens)
 
 
-def test_two_business_support_can_cover_battery_soc_and_temperature() -> None:
+def test_search_rejects_weather_and_battery_businesses() -> None:
     task = TaskSpec(
         userQuery="显示天气、电量和手机温度",
         size="2x2",
@@ -776,30 +760,17 @@ def test_two_business_support_can_cover_battery_soc_and_temperature() -> None:
         ],
     }
 
-    result = retrieve_template_variants(
-        query,
-        task,
-        get_cardplan_registry(),
-        bindings,
-        card_spec,
-    )
-
-    battery_candidate = next(
-        item for item in result.component_candidates if item.component_id == "BatteryOverview"
-    )
-    assert "BatteryOverviewNormalPowerTemperatureIconSupport@1" in (
-        battery_candidate.available_template_ids
-    )
-    weather_candidate = next(
-        item for item in result.component_candidates if item.component_id == "WeatherOverview"
-    )
-    assert "WeatherOverviewTemperatureSupport@1" in (
-        weather_candidate.available_template_ids
-    )
-    assert result.scope.theme_id == "2x2-two-support"
+    with pytest.raises(TemplateRetrievalMiss, match="multiple data businesses"):
+        retrieve_template_variants(
+            query,
+            task,
+            get_cardplan_registry(),
+            bindings,
+            card_spec,
+        )
 
 
-def test_two_business_support_can_cover_weather_uv_and_battery_temperature() -> None:
+def test_search_rejects_weather_uv_and_battery_businesses() -> None:
     task = TaskSpec(
         userQuery="显示天气、电量和手机温度",
         size="2x2",
@@ -859,29 +830,17 @@ def test_two_business_support_can_cover_weather_uv_and_battery_temperature() -> 
         ],
     }
 
-    result = retrieve_template_variants(
-        query,
-        task,
-        get_cardplan_registry(),
-        bindings,
-        card_spec,
-    )
-
-    weather_candidate = next(
-        item for item in result.component_candidates if item.component_id == "WeatherOverview"
-    )
-    assert "WeatherOverviewTemperatureUvSupport@1" in (
-        weather_candidate.available_template_ids
-    )
-    battery_candidate = next(
-        item for item in result.component_candidates if item.component_id == "BatteryOverview"
-    )
-    assert "BatteryOverviewNormalPowerTemperatureIconSupport@1" in (
-        battery_candidate.available_template_ids
-    )
+    with pytest.raises(TemplateRetrievalMiss, match="multiple data businesses"):
+        retrieve_template_variants(
+            query,
+            task,
+            get_cardplan_registry(),
+            bindings,
+            card_spec,
+        )
 
 
-def test_countdown_weather_is_rejected_without_countdown_support() -> None:
+def test_search_rejects_countdown_and_weather_businesses() -> None:
     task = TaskSpec(
         userQuery="使用2*2规格，做个马拉松赛事倒计时卡片。",
         size="2x2",
@@ -889,10 +848,13 @@ def test_countdown_weather_is_rejected_without_countdown_support() -> None:
             "data": {
                 "countdown": {"countdownDays": _field(30, "integer")},
                 "weather": {
+                    "location": {"districtName": _field("浦东新区")},
                     "current": {
                         "temperatureText": _field("29°C"),
                         "condition": _field("多云"),
                         "uvIndex": _field("中等"),
+                        "airQuality": _field("良"),
+                        "coldLevel": _field("低"),
                     }
                 },
             }
@@ -908,13 +870,16 @@ def test_countdown_weather_is_rejected_without_countdown_support() -> None:
             capabilityId="ViewWeather",
             writeResultTo="/data/weather",
             candidateOutputFields=[
+                "/location/districtName",
                 "/current/temperatureText",
                 "/current/condition",
                 "/current/uvIndex",
+                "/current/airQuality",
+                "/current/coldLevel",
             ],
         ),
     )
-    with pytest.raises(TemplateRetrievalMiss, match="no provider template|Support"):
+    with pytest.raises(TemplateRetrievalMiss, match="multiple data businesses"):
         retrieve_template_variants(
             TemplateRetrievalQuery(
                 themeId="race-sunrise-action",

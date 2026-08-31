@@ -25,7 +25,7 @@
     },
     {
       "templateId": "TwoSupportLayout@1",
-      "description": "2x2 双业务支撑布局，纵向承载两个可在内部绑定事件的 Support 业务模板。",
+      "description": "仅供兼容 LLM 路径与原子预览使用的 2x2 双业务支撑布局，纵向承载两个可在内部绑定事件的 Support 业务模板；当前 Search 不可达。",
       "entry": "templates/layout.cardtpl"
     },
     {
@@ -146,7 +146,7 @@
     },
     {
       "name": "TwoSupportLayout",
-      "description": "仅用于 2x2；纵向承载两个 Support 业务 child，事件只允许绑定在 child 内部。",
+      "description": "仅供兼容 LLM 路径与原子预览使用；在 2x2 纵向承载两个 Support 业务 child，事件只允许绑定在 child 内部；当前 Search 不可达。",
       "supportedCardSizes": [
         "2x2"
       ],

@@ -6,8 +6,10 @@ import json
 
 import pytest
 
+from config.config import get_settings
 from services.compact_dsl_a2ui_converter import convert_compact_dsl_to_a2ui
 from services.fusion_ball_expander import (
+    FUSION_BALL_MIN_PRD_VERSION_CONFIG,
     FusionBallExpansionError,
     build_fusion_ball_content_id,
     build_fusion_ball_palette,
@@ -18,11 +20,21 @@ from services.fusion_ball_expander import (
 from services.generation_pipeline import DesignCompactProcessor, DslProcessingContext
 
 
+@pytest.fixture(autouse=True)
+def configure_fusion_ball_min_prd_version(monkeypatch) -> None:
+    monkeypatch.setattr(
+        get_settings(),
+        "CONFIG",
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: "11.7.5.206"},
+    )
+
+
 @pytest.mark.parametrize(
-    ("app_version", "expected"),
+    ("prd_ver", "expected"),
     [
         ("11.7.5.206", True),
-        ("CreateMyCard/11.7.5.206", True),
+        ("11.7.5.207", True),
+        ("CreateMyCard/11.7.5.206", False),
         ("11.7.5.205", False),
         ("11.7.5.204", False),
         ("", False),
@@ -30,8 +42,26 @@ from services.generation_pipeline import DesignCompactProcessor, DslProcessingCo
         ("invalid", False),
     ],
 )
-def test_fusion_ball_version_gate_is_strict(app_version, expected) -> None:
-    assert fusion_ball_enabled(app_version) is expected
+def test_fusion_ball_version_gate_uses_configured_minimum(prd_ver, expected) -> None:
+    assert fusion_ball_enabled(prd_ver) is expected
+
+
+@pytest.mark.parametrize(
+    "config",
+    [
+        {},
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: ""},
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: "invalid"},
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: 206},
+    ],
+)
+def test_fusion_ball_version_gate_fails_closed_for_invalid_config(
+    monkeypatch,
+    config,
+) -> None:
+    monkeypatch.setattr(get_settings(), "CONFIG", config)
+
+    assert fusion_ball_enabled("11.7.5.206") is False
 
 
 def test_fusion_ball_palette_supports_explicit_and_base_color_inputs() -> None:
@@ -91,7 +121,7 @@ def test_compact_root_fusion_design_token_expands_and_marks_content(root_type) -
     a2ui = convert_compact_dsl_to_a2ui(
         compact_dsl,
         size="2x2",
-        app_version="11.7.5.206",
+        prd_ver="11.7.5.206",
     )
     messages = [json.loads(line) for line in a2ui.splitlines()]
     components = {
@@ -110,9 +140,9 @@ def test_compact_root_fusion_design_token_expands_and_marks_content(root_type) -
     assert components["fusionBallMedium"]["styles"]["backgroundColor"] == "#FF2B65D9"
 
 
-@pytest.mark.parametrize("app_version", ["11.7.5.205", "0", "invalid"])
+@pytest.mark.parametrize("prd_ver", ["11.7.5.205", "0", "invalid", None])
 def test_compact_root_fusion_design_token_stays_off_for_unsupported_version(
-    app_version,
+    prd_ver,
 ) -> None:
     content_id = build_fusion_ball_content_id("root")
     compact_dsl = "\n".join(
@@ -127,7 +157,7 @@ def test_compact_root_fusion_design_token_stays_off_for_unsupported_version(
     a2ui = convert_compact_dsl_to_a2ui(
         compact_dsl,
         size="2x2",
-        app_version=app_version,
+        prd_ver=prd_ver,
     )
     messages = [json.loads(line) for line in a2ui.splitlines()]
     component_ids = {
@@ -196,7 +226,7 @@ def test_compact_fallback_processor_expands_fusion_design_token() -> None:
         task_spec={
             "userQuery": "天气卡片",
             "size": "2x2",
-            "appVersion": "11.7.5.206",
+            "prdVer": "11.7.5.206",
             "eventCandidates": [],
             "dataModelSchema": {"data": {}},
             "assetCandidates": [],

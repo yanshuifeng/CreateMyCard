@@ -930,6 +930,7 @@ build(
     effective_data_capabilities: list[DataCapability],
     event_candidates: list[EventAction],
     asset_candidates: list[AssetCapability],
+    prd_ver: str | None = None,
 ) -> TaskSpec
 ```
 
@@ -940,10 +941,15 @@ TaskSpec 顶层只包含：
 ```text
 userQuery
 size
+prdVer
 eventCandidates
 dataModelSchema
 assetCandidates
 ```
+
+`prdVer` 直接保留生成请求中的端侧协议字段，不在 TaskSpec 构造阶段规范化。融球最低版本通过
+`CONFIG.fusion_ball_min_prd_version` 配置；配置或请求版本缺失、为空、非法，或者请求版本低于配置版本时，
+融球门禁返回关闭。
 
 `eventCandidates[]` 固定包含同层级的 `id/description/call/args`。其中 `description` 来自事件能力注册表，
 只帮助模型理解事件用途；生成的事件处理器仍必须逐字段复用候选 `call/args`。

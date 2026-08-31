@@ -94,8 +94,9 @@ flowchart TD
 2. 编译 `.cardtpl`，校验模板 ID、Props、数据路径、children 槽位和组件闭包。
 3. 从 `provider.json#templates` 派生“业务 -> Template -> 数据能力 -> Provider”索引。
 4. 应用 `disabledProviderIds` 和 `disabledTemplateIds`，确保禁用项不进入首层和二层。
-5. 生产与验证入口默认关闭融球；只有调用方显式传入 `enable_fusion_ball=true` 时才构造包含融球 Theme
-   的请求级视图。关闭时移除所有 `fusionBallStyle` Theme 及其首层规则和场景索引。
+5. 生产入口按 TaskSpec `prdVer` 与 `CONFIG.fusion_ball_min_prd_version` 裁决，配置或请求版本缺失、非法、
+   低于配置版本时关闭；验证入口未显式指定时也关闭。只有调用方传入 `enable_fusion_ball=true` 时才构造
+   包含融球 Theme 的请求级视图。关闭时移除所有 `fusionBallStyle` Theme 及其首层规则和场景索引。
 6. 建立字段 Search 索引，供 `retrieve_template_variants()` 查找可覆盖候选。
 
 Provider Template 和业务分组只从各自 `provider.json` 与 `.cardtpl` 派生；Theme 只从
@@ -131,14 +132,13 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 - 字段必须逐字来自对应 `candidateOutputFields`。
 - CardSpec 写入根必须与 Provider `dataDomain` 一致。
 - 模板的 `primaryData` 和 `secondaryData` 必须都能从 TaskSpec 中取得。
-- Search 接受一个或两个数据业务，可外加最多两个显式 Action；三个及以上业务在二层调用前返回模板不适用。
+- Search 当前只接受一个数据业务，可外加最多两个显式 Action；候选解析后命中多个业务时，在布局后缀过滤和
+  二层模型调用前显式返回模板不适用。
 - 首层必须完整标定用户显式字段，不得为了迁就布局限制而省略其他业务。
-- Search 按业务数和 Action 数过滤布局后缀，同时要求每个保留的 Template 独立完整覆盖所属业务的
-  用户显式字段：双业务只保留 Support；单业务零、一个、两个 Action 分别保留 Full、Hero+Full、Compact。
+- Search 按 Action 数过滤布局后缀，同时要求每个保留的 Template 独立完整覆盖所属业务的用户显式字段：
+  单业务零、一个、两个 Action 分别保留 Full、Hero+Full、Compact。
 - `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 的最终组合由第二层完成。
-- `TwoSupportLayout` 是 `2x2` 双业务的唯一布局，事件绑定在 Support 内部。
-- 布局专用主题不暴露给首层 LLM。双业务候选通过后，服务端按 `TwoSupportLayout` 与两个能力确定性切换
-  到唯一兼容主题；当前为 `2x2-two-support`。找不到或存在多个兼容主题时直接判定模板路线不适用。
+- `Support`、`TwoSupportLayout` 和 `2x2-two-support` 保留给旧 LLM 选择器兼容测试和原子预览，当前 Search 路径不可达。
 
 结果是 `TemplateRouteSelection`，其 `availableTemplateIds` 仍是二层候选集，不是最终选择。
 
@@ -157,8 +157,8 @@ Search 路线的首层输出是 `TemplateRetrievalQuery`：
 只输出受限的 Layout/Template 调用和
 展示 Props。业务 Template 是不可拆分的原子节点，禁止用基础组件补业务内容。候选经布局后缀、Action
 数量或必需参数筛选后为空时直接失败。单业务一个 Action 时，若存在语义匹配图标，二层可在
-`HeroActionLayout + PillAction` 与 `FullIconActionLayout + IconAction` 中选择；双业务只能使用
-`TwoSupportLayout`，不生成根级 Action child。二层不能输出原始 `call/args`，也不能绕过
+`HeroActionLayout + PillAction` 与 `FullIconActionLayout + IconAction` 中选择。当前 Search 不会向二层下发多业务候选。二层不能输出原始
+`call/args`，也不能绕过
 必选事件使用 `EventAction(props.actionId)` 生成交互；Support 的可选事件使用
 `EventAction(props?.actionId)`，未提供 `actionId` 时不生成 `onClick`。
 

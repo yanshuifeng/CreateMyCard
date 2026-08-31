@@ -509,7 +509,7 @@ class WidgetGenerationService:
             "card_spec="
             f"{json_for_log(card_spec.model_dump(mode='json', exclude_none=True))} "
             "task_spec="
-            f"{json_for_log(task_spec.model_dump(mode='json', exclude_none=True))} "
+            f"{json_for_log(task_spec.model_dump(mode='json'))} "
             "task_data_model_schema_keys="
             f"{json_for_log(list(task_spec.dataModelSchema))}"
         )
@@ -576,7 +576,7 @@ class WidgetGenerationService:
         processing_context = DslProcessingContext(
             size=card_spec.suggestSize,
             card_spec=card_spec.model_dump(mode="json", exclude_none=True),
-            task_spec=task_spec.model_dump(mode="json", exclude_none=True),
+            task_spec=task_spec.model_dump(mode="json"),
             protocol_profile=conversion_protocol_profile,
             design_profile_id=policy.design_profile_id,
             data_capabilities=effective_data_capabilities,
@@ -931,7 +931,7 @@ class WidgetGenerationService:
         artifact = self._build_artifact(
             genui,
             card_spec.model_dump(mode="json", exclude_none=True),
-            task_spec.model_dump(mode="json", exclude_none=True),
+            task_spec.model_dump(mode="json"),
             effective_data_capabilities,
             effective_events,
             asset_candidates,

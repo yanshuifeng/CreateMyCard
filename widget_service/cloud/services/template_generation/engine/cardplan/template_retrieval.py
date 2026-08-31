@@ -2,7 +2,7 @@
 
 Search deliberately does not select a final template, layout, component composition,
 card size, or theme compatibility. Those are second-layer responsibilities. The 2x2
-route admits one business with root Actions or two Support businesses with embedded Actions.
+route currently admits one business with zero to two root Actions.
 """
 
 from __future__ import annotations
@@ -115,7 +115,8 @@ def build_template_retrieval_prompt(
         "candidateOutputFieldsByCapability；不得按模板反推字段，"
         "也不得补全用户未要求展示的字段。"
         "不得为了迁就布局限制而省略用户明确要求的其他业务字段；"
-        "2x2 最多保留两个可完整覆盖的业务，更多业务由服务端确定性判定模板不适用。"
+        "2x2 模板 Search 当前只接受一个可完整覆盖的业务，"
+        "多个业务由服务端确定性判定模板不适用。"
         "用户只要求某领域卡片、未明确字段时，该 capability 输出空数组。"
         "action 仅当用户明确要求点击、跳转或操作时才选择 actionCandidates 中"
         "语义一致的零到两个不重复 eventId；不能因候选事件存在而默认选择。"
@@ -192,14 +193,6 @@ def retrieve_template_variants(
             action_count,
             required_groups,
         )
-        if len(candidates) == 2:
-            try:
-                resolved_theme_id = registry.require_layout_theme(
-                    "TwoSupportLayout",
-                    tuple(query.required_output_fields_by_capability),
-                )
-            except ValueError as exc:
-                raise TemplateRetrievalMiss(str(exc)) from exc
     else:
         if len(candidates) > 1:
             raise TemplateRetrievalMiss(
@@ -268,13 +261,13 @@ def _apply_2x2_combination_policy(
 ) -> tuple[tuple[TemplateComponentCandidate, ...], list[tuple[str, ...]]]:
     """Restrict 2x2 candidates to the business and Action capacity contract."""
     component_count = len(candidates)
-    if component_count >= 3:
-        raise TemplateRetrievalMiss("2x2 template Search supports at most two businesses")
+    if component_count > 1:
+        raise TemplateRetrievalMiss(
+            "2x2 template Search does not support multiple data businesses"
+        )
     if action_count >= 3:
         raise TemplateRetrievalMiss("2x2 template Search supports at most two Actions")
-    if component_count == 2:
-        layout_suffixes = ("Support",)
-    elif component_count == 1:
+    if component_count == 1:
         layout_suffixes = {
             0: ("Full",),
             1: ("Hero", "Full"),

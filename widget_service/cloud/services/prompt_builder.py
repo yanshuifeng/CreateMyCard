@@ -37,7 +37,7 @@ class PromptBuilder:
         previous_design_token: str | None = None,
     ) -> list[dict[str, str]]:
         """保持文件化 system 不变，并把源格式多轮数据放入第二条 user 消息。"""
-        task_spec_value = task_spec.model_dump(mode="json", exclude_none=True)
+        task_spec_value = task_spec.model_dump(mode="json")
         user_content = json.dumps(task_spec_value, ensure_ascii=False)
         if previous_design_token is not None:
             user_content = json.dumps(
@@ -101,7 +101,7 @@ class PromptBuilder:
                     "mode": "edit",
                     "editInstruction": task_spec.userQuery,
                     "targetSize": task_spec.size,
-                    "newTaskSpec": task_spec.model_dump(mode="json", exclude_none=True),
+                    "newTaskSpec": task_spec.model_dump(mode="json"),
                     "previousGenui": previous_genui,
                     "degradationContext": removed_capability_summary,
                     "instruction": (

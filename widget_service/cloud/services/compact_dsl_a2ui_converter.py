@@ -730,7 +730,7 @@ def convert_compact_dsl_to_a2ui(
     protocol_profile: dict[str, Any] | None = None,
     theme: ThemeMode = "light",
     surface_id: str = "surface_card",
-    app_version: str = "0",
+    prd_ver: str | None = None,
 ) -> str:
     """Convert one Design Compact DSL card to standard three-message A2UI."""
     profile = protocol_profile or {"version": "v0.9"}
@@ -739,7 +739,7 @@ def convert_compact_dsl_to_a2ui(
     fusion_palette = fusion_ball_palette_for_root(
         components,
         size=size,
-        app_version=app_version,
+        prd_ver=prd_ver,
     )
 
     normalized_components = [_normalize_component(row) for row in components]

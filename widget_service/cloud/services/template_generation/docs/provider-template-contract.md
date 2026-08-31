@@ -65,7 +65,7 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 
 业务模板 ID 必须以 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 之一结束。六类后缀分别表示：
 
-- `Support`：约 `2x1`，两个不同业务 Support 拼成 `2x2`；事件按需绑定在 Support 内部，不生成根级 Action；
+- `Support`：约 `2x1`，保留给旧 LLM 选择器兼容测试和原子预览；事件按需绑定在 Support 内部，当前 Search 不可达；
 - `Compact`：约 `2x1`，只用于一个 Compact 加两个 PillAction；
 - `Hero`：约 `2x1.7`，用于 `2x2` 的 Hero 加一个 PillAction；
 - `Full`：完整 `2x2`，无 Action 时单独使用，或在存在语义匹配图标素材时加一个 IconAction；
@@ -98,12 +98,10 @@ TaskSpec 后的绝对根路径；模板内的数据路径始终相对该根路�
 | 1 | 1 | `Hero` | `HeroActionLayout` + 1 个 `PillAction` |
 | 1 | 1 | `Full` | 仅存在语义匹配的已批准图标素材时，使用 `FullIconActionLayout` + 1 个 `IconAction` |
 | 1 | 2 | `Compact` | `CompactTwoActionLayout` + 2 个连续的 `PillAction` |
-| 2 | 0～2 | 2 个 `Support` | `TwoSupportLayout`；事件按需绑定在对应 Support 内部，根布局不生成 Action |
 
-双业务主题不由第一层模型选择。第一层仍选择覆盖业务语义的普通主题；当 Search 或旧二层作用域确定为
-`2x2`、两个业务时，服务端根据 `TwoSupportLayout` 和两个业务能力唯一解析布局专用主题
-`2x2-two-support`。该主题必须覆盖两个能力，并统一提供卡片根样式与两个 Support 内容块的
-`supportContentStyle`。没有唯一兼容主题时，模板路线明确拒绝，不回退为两个不同业务主题拼接。
+当前 Search 的 `2x2` 组合只包含上表单业务三类场景。候选解析命中多个业务时，在布局后缀过滤和二层模型调用前显式拒绝。
+`TwoSupportLayout`、`2x2-two-support` 与 Support 内部事件绑定仍保留给 `firstLayerComponentSelector="llm"` 兼容路径和原子预览，
+但不进入当前 Search 生产路径。
 
 Search 只保留能够独立完整覆盖所属业务显式字段的模板候选，不提前在 `Hero` 与
 `Full + IconAction` 之间做最终视觉选择。第二层只能使用 Search 返回的候选、已批准事件和
@@ -217,9 +215,10 @@ Provider 模板作者侧声明，不进入最终 Tersel 语法。最终产物不
 
 ## 2x2 融球背景
 
-生产服务和验证入口默认关闭融球；内部模板入口要求调用方显式传入 `enable_fusion_ball`。为 `false` 时，
-所有包含 `fusionBallStyle` 的 Theme 在首层 Prompt 构造前即从请求级 Registry 视图移除，检索、二层组合和
-编译也不能再查找或接受这些 Theme。
+生产服务入口按 TaskSpec `prdVer` 与 `CONFIG.fusion_ball_min_prd_version` 裁决融球；配置或请求版本缺失、
+非法、低于配置版本时关闭，验证入口未显式指定时也关闭。内部模板入口要求调用方显式传入
+`enable_fusion_ball`。为 `false` 时，所有包含 `fusionBallStyle` 的 Theme 在首层 Prompt 构造前即从请求级
+Registry 视图移除，检索、二层组合和编译也不能再查找或接受这些 Theme。
 
 模板 Search 当前整体不支持 `2x4`，此尺寸在任何首层 Prompt 或模型调用前直接判定模板不适用。Wide
 Provider 和 Layout 资源只作后续能力预留，当前不进入生产模板链。
@@ -277,15 +276,15 @@ PillAction 模板使用 `$theme('actionStyle.backgroundColor')` 和 `$theme('act
 `TemplateRouteSelection`。只有这个内部结果才包含 `componentCandidates` 和
 `availableTemplateIds`：
 
-1. `2x2` Search 最多允许命中两个业务组件；每个保留模板必须独立完整承载该业务的显式字段；
+1. `2x2` Search 只允许命中一个业务组件；保留模板必须独立完整承载该业务的显式字段；
 2. 显式字段满足后，再检查候选模板自身 `primaryData` 与 `secondaryData` 在 TaskSpec 中全部存在；
 3. `candidateOutputFields` 只是候选数据投影，不直接等于强制显示集合；
-4. 显式请求包含三个及以上数据业务，或任一字段无法在自己的业务组件内覆盖时，在进入第二层前返回模板不匹配；
+4. 显式请求命中多个数据业务，或任一字段无法在自己的业务组件内覆盖时，在进入第二层前返回模板不匹配；
 5. Search 保留字段匹配、模板准入、候选排序和数量上限能力；同一业务可同时返回多个 Hero、Full 或 Compact
    等同形态候选，不能退化为无序枚举；
 6. Action 独立于数据业务计数；单业务按零、一个、两个 Action 分别保留 Full、Hero+Full、Compact；
-7. 双业务只保留 Support 后缀，可携带零到两个内部事件；Search 不选择事件的最终业务归属；
-8. 两个业务组合只使用 `TwoSupportLayout`；单业务不再提供双 Compact 组合。
+7. Action 不影响数据业务计数，但不得用 Action 覆盖或合并第二个数据业务；
+8. Support 和 `TwoSupportLayout` 仅保留给兼容路径，当前 Search 不将其作为多业务回退。
 
 配置 `firstLayerComponentSelector: "llm"` 时，系统可走兼容选择器
 `plan_template_route_with_llm()`，由第一层直接产出 Theme、组件候选和 Action；该路径不是当前默认生产路径。
@@ -296,8 +295,8 @@ Provider 选择模板。第二层不接收 TaskSpec、`dataFacts`、`mustKeep` �
 不得用基础组件补充业务内容。候选筛选后为空或必需 props 无法满足时直接失败。若第一层输出了 `action`，
 第二层按最终模板后缀选择完整组合：Hero/WideHero 使用一个
 `Template("PillAction@1", props)`，单 Compact 使用两个 PillAction 模板；Full 仅可在
-`FullIconActionLayout` 中使用一个 IconAction；双 Support 把 actionId 各一次写入业务模板内部；WideFull
-不生成 Action。PillAction Props
+`FullIconActionLayout` 中使用一个 IconAction；WideFull 不生成 Action。旧 LLM 兼容路径仍可将双 Support 的 actionId
+各一次写入业务模板内部。PillAction Props
 包含 `actionId`、`label` 和可选 `icon`，IconAction Props 包含 `actionId`、`icon`。第二层只决定展示内容，
 必选 Action CardTpl 必须在交互组件样式中写入 `onClick: EventAction(props.actionId)`；可选事件的
 Support CardTpl 使用 `onClick: EventAction(props?.actionId)`。微服务校验候选配对，将该模板声明绑定为
@@ -306,9 +305,9 @@ Support CardTpl 使用 `onClick: EventAction(props?.actionId)`。微服务校验
 ## 当前迁移范围
 
 天气、日历、手机电量、耳机、健康运动、应用使用时长、倒计时和系统内存当前共有
-121 个无 Variant 的业务 UI 模板，其中 32 个是与 Compact 数据覆盖一一对应的 Support；当前形成 11 个业务组。Layout Provider
-另提供 6 个支持 `...children` 的布局模板：名称包含 `Wide` 的布局只用于 `2x4`，其余布局只用于
-`2x2`，两类布局不得混用。
+87 个无 Variant 的业务 UI 模板，其中 19 个是 Support；当前形成 11 个业务组。Layout Provider 另提供
+6 个支持 `...children` 的布局模板，Action Provider 提供 2 个动作模板，运行时 Registry 共 95 个模板。
+名称包含 `Wide` 的布局只用于 `2x4`，其余布局只用于 `2x2`，两类布局不得混用。
 新增或修改资源后执行：
 
 ```bash

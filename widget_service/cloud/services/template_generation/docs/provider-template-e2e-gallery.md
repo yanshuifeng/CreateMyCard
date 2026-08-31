@@ -15,6 +15,8 @@
 `generate_widget_card_terse_dsl_nested2` 时，通过仅供 Python 服务调用的关键字参数携带目标模板、目标 Action
 和样例覆盖；该入口据此构造 `TemplateSourceGenerator`，它们不进入 `GenerateWidgetCardRequest`、工具请求
 JSON 或公开 Schema。Search 通过后，二层候选才会收窄到目标模板，外部工具请求不能设置这些开发测试约束。
+当前 `2x2` Search 显式拒绝多业务组合，因此该端到端画廊只生成单业务路线。Provider 中已有的 Support
+模板与 `TwoSupportLayout` 仍作为底层保留能力和原子预览资源存在，但当前 Search 路线不可达。
 
 ## 场景矩阵
 
@@ -23,33 +25,32 @@ JSON 或公开 Schema。Search 通过后，二层候选才会收窄到目标模�
 | 场景 | 预期模板组合 |
 | --- | --- |
 | 单内容 + 2 个 Action | Compact + 2 × PillAction |
-| 2 个内容 | 2 × Support；事件仅在 Support 内部按需绑定 |
-| 单内容 + 1 个 Action | Hero + PillAction，或有语义图标时 Full + IconAction |
+| 单内容 + 1 个 Action | Hero + PillAction |
 | 单内容 | Full |
 
-因此每个 Compact 生成“单内容 + 2 个 Action”用例，每个 Support 生成“2 个内容”用例，每个 Hero
-生成“单内容 + 1 个 Action”用例，每个 Full 生成“单内容”用例。双业务场景会选择另一个 Provider 的
-Support 作为配对内容并调用正式服务；业务缺少某个后缀时仍保留一张缺失占位卡。
-双 Support 成功进入 Search 后统一使用布局专用主题 `2x2-two-support`，不沿用任一单业务主题。
+因此每个 Compact 生成“单内容 + 2 个 Action”用例，每个 Hero 生成“单内容 + 1 个 Action”用例，每个
+Full 生成“单内容”用例。业务缺少某个后缀时仍保留一张缺失占位卡。画廊不构造 Support 配对请求，避免把
+当前 Search 明确拒绝的多业务组合记录为普通生成失败。
 
 每个上述用例继续展开为两个相邻外观：
 
-| 外观 | TaskSpec `appVersion` 来源 | 预期 |
+| 外观 | TaskSpec `prdVer` 来源 | 预期 |
 | --- | --- | --- |
-| 非融球 | 请求 `deviceInfo.prdVer = 11.7.5.205` | 版本阈值等于最低版本，融球关闭 |
-| 融球 | 请求 `deviceInfo.prdVer = 11.7.5.206` | 严格高于阈值；单业务 Compact/Full/Hero 命中融球 Theme 时展开融球背景 |
+| 非融球 | 请求 `deviceInfo.prdVer = 11.7.5.205` | 低于配置最低版本，融球关闭 |
+| 融球 | 请求 `deviceInfo.prdVer = 11.7.5.206` | 等于配置最低版本；单业务 Compact/Full/Hero 命中融球 Theme 时展开融球背景 |
 
-批跑结果会同时校验 Artifact TaskSpec 中的 `appVersion` 和最终 A2UI 是否按模板融球契约出现受控背景。
-Support、多业务以及没有融球 Theme 的业务即使使用 11.7.5.206 也不应出现融球。两种外观保持相同
-`providerId` 并相邻写入 manifest，端侧因此把它们放在对应 Provider 业务的同一个页签中，而不是拆成
-“融球/非融球”两个页签；同一 Provider 中可通过符合条件的 Compact/Full/Hero 场景对照两种实际效果。
+画廊验证前需在服务 `CONFIG` 中配置 `fusion_ball_min_prd_version=11.7.5.206`。批跑结果会同时校验
+Artifact TaskSpec 中的 `prdVer` 和最终 A2UI 是否按模板融球契约出现受控背景。
+没有融球 Theme 的业务即使使用 11.7.5.206 也不应出现融球。两种外观保持相同 `providerId` 并相邻写入
+manifest，端侧因此把它们放在对应 Provider 业务的同一个页签中，而不是拆成“融球/非融球”两个页签；
+同一 Provider 中可通过符合条件的 Compact/Full/Hero 场景对照两种实际效果。
 
 模拟输入从当前 `provider.json` 读取 Provider、业务、能力写入根，以及目标模板自己的主数据和次要数据；
 这些必选数据全部进入 `candidateOutputFields`。数据能力参数和 Action 内容来自当前能力注册表，用户 query
 明确描述每一个按钮的操作语义。缺少对应后缀时仍保留请求文件，但结果直接记录为“缺失
-Support/Compact/Hero/Full 模板”，供端侧显示异常卡片。生成完成后还会检查 A2UI 的 Action 数量，不符合场景预期的
-结果按失败记录。Provider 或单模板被当前管控配置禁用时，用例仍会出现在清单中，但直接标记为禁用，不调用
-模型。
+Compact/Hero/Full 模板”，供端侧显示异常卡片。生成完成后还会检查 A2UI 的 Action 数量，不符合场景
+预期的结果按失败记录。Provider 或单模板被当前管控配置禁用时，用例仍会出现在清单中，但直接标记为禁用，
+不调用模型。
 
 ## 生成
 
@@ -85,8 +86,8 @@ widget_service/.venv312/bin/python \
   --refresh-inputs --dry-run --concurrency 2
 ```
 
-以 2026-08-31 当前资源为基线，应生成 8 个 Provider、168 个用例；无模型 dry-run 中 26 个状态为
-`missing`，142 个状态为 `not_generated`。Provider 或模板调整后数量可以变化，应以重新生成的
+以 2026-08-31 当前资源为基线，应生成 8 个 Provider、118 个用例；无模型 dry-run 中 18 个状态为
+`missing`，100 个状态为 `not_generated`。Provider 或模板调整后数量可以变化，应以重新生成的
 输入 manifest 为准，不能继续复用旧结果目录中的数量。
 
 ### 真实批跑
@@ -113,7 +114,8 @@ widget_service/.venv312/bin/python \
 - `--strict`：存在真实生成失败时返回非零退出码；模板后缀缺失仍作为画廊检查结果保留。
 - `--model-failure-attempts 1`：覆盖单用例模型失败最大尝试次数；默认值为 2，必须为正整数。
 - Provider 画廊不提供融球命令行开关；每个输入场景固定构造 `11.7.5.205` 与 `11.7.5.206` 两个请求，
-  由正式服务把版本写入 TaskSpec 并完成融球裁决。
+  由正式服务把 `prdVer` 写入 TaskSpec，并结合 `CONFIG.fusion_ball_min_prd_version` 完成融球裁决；配置缺失
+  或非法时两种请求都关闭融球。
 - `--input-root`、`--output-root`：覆盖默认临时目录。
 
 默认输入和输出目录为：
@@ -125,9 +127,11 @@ widget_service/cloud/services/template_generation/test/provider_gallery_output/
 
 输入请求是与工具调用一致的 `content + deviceInfo + session + userAuth` 包络；每个请求按
 `providers/<provider>/<business>/<template>/<appearance>/<scenario>.json` 存放。输出按同样的
-Provider/业务/模板层级保存 A2UI 消息数组，根目录 `manifest.json` 记录目标模板、搭配模板以及 `success`、
-`failed`、`missing` 和 `not_generated` 状态。双版本输入使用
-`provider-template-gallery-input/3`；端侧兼容输出继续使用 `provider-template-gallery-output/2`。
+Provider/业务/模板层级保存 A2UI 消息数组，根目录 `manifest.json` 记录目标模板以及 `success`、`failed`、
+`missing` 和 `not_generated` 状态。双版本输入使用
+`provider-template-gallery-input/4`；端侧输出继续使用 `provider-template-gallery-output/2`，并在新的
+`prdVer`、`taskSpecPrdVer` 字段之外保留 `appVersion`、`taskSpecAppVersion` 和空的
+`partnerTemplateId` 兼容字段，现有端侧导入器无需升级即可读取。
 
 ## 端侧导入
 

@@ -73,9 +73,6 @@ _PROVIDER_COMPONENT_FIELDS: dict[str, tuple[str, ...]] = {
         "chargingStatusDesc",
         "healthStatusDesc",
         "pluggedTypeDesc",
-        "nowCurrentText",
-        "voltageText",
-        "isBatteryPresentText",
     ),
     "ResourceUsageOverview": ("usagePercent", "availableMemText", "totalMemText"),
     "AppUsageOverview": (

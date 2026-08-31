@@ -4,11 +4,12 @@
 
 ## 整改总览
 
-- [x] 91 个业务模板全部使用 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 后缀。
+- [x] 87 个业务模板全部使用 `Support`、`Compact`、`Hero`、`Full`、`WideHero`、`WideFull` 后缀。
 - [x] 业务模板尺寸和动作组合由后缀推导，不再由 Provider 重复声明。
 - [x] Provider 数据统一拆为 `primaryData`、`secondaryData`、`optionalData`。
 - [x] `primaryData` 与 `secondaryData` 均参与模板准入硬校验。
-- [x] 双业务使用 Support 内嵌事件；Compact 使用双 PillAction；Full 用于无 Action，或搭配一个 IconAction。
+- [x] Support/TwoSupport 底层资源仍保留，但当前 Search 显式拒绝 `2x2` 多业务；Compact 使用双
+  PillAction；Full 用于无 Action，或搭配一个 IconAction。
 - [x] PillAction/IconAction 使用独立 Action Provider 模板，第二层只输出批准的展示 Props。
 - [x] 第一层支持选择零到两个不重复 eventId。
 - [x] 每个业务模板均在 `provider.json` 中声明主数据、次要数据、可选数据和布局场景。
@@ -17,7 +18,7 @@
 
 | 后缀 | 布局及组合场景 | 卡片尺寸 |
 | --- | --- | --- |
-| Support | 约 2x1；双 Support，事件按需绑定在模板内部 | 2x2 |
+| Support | 约 2x1；底层双 Support 资源保留，当前 Search 不可达 | 2x2 |
 | Compact | 约 2x1；单 Compact + 2 个 PillAction | 2x2 |
 | Hero | 约 2x1.7；Hero + 1 个 PillAction | 2x2 |
 | Full | 完整 2x2；无 Action，或 Full + 1 个 IconAction | 2x2 |
@@ -29,7 +30,7 @@
 | Provider | 数据能力 | 数据根 | 模板数 | 当前状态 |
 | --- | --- | --- | ---: | --- |
 | app-usage | `GetAppUsageDuration` | `/data/appUsageStats` | 6 | 启用 |
-| battery | `GetPhoneBatteryInfo` | `/data/phoneBattery` | 25 | 启用 |
+| battery | `GetPhoneBatteryInfo` | `/data/phoneBattery` | 21 | 启用 |
 | calendar | `GetCalendarEvents` | `/data/calendar` | 8 | 启用 |
 | countdown | `GetCountdownDays` | `/data/countdown` | 1 | 启用 |
 | earphone | `GetEarphoneInfo` | `/data/earphone` | 9 | 启用 |
@@ -38,8 +39,8 @@
 | weather | `ViewWeather` | `/data/weather` | 9 | 启用 |
 
 下方完整展开本轮调整的 Calendar、Countdown、Earphone 和 Weather；其他 Provider 保留基础形态摘要，
-精确全集以当前 `provider.json` 为准。只有显式存在 `Support@1` 的业务才能进入双业务组合；Support 与
-Compact 不要求一一对应。
+精确全集以当前 `provider.json` 为准。Support 与 Compact 不要求一一对应；Support/TwoSupport 底层资源
+继续保留，但当前 Search 会显式拒绝 `2x2` 多业务组合。
 
 ## AppUsageOverview
 
@@ -57,7 +58,7 @@ Compact 不要求一一对应。
 ## BatteryOverview
 
 - Provider：`com.huawei.battery.cli`；运行状态：启用。
-- 数据能力：`GetPhoneBatteryInfo`；模板数：25。
+- 数据能力：`GetPhoneBatteryInfo`；模板数：21。
 
 | 状态 | 模板 | 布局场景 | 主数据 | 次要数据 | 可选数据 |
 | --- | --- | --- | --- | --- | --- |
@@ -72,7 +73,6 @@ Compact 不要求一一对应。
 | ✅ | `BatteryOverviewNormalWeatherCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batterySOCText` | `/chargingStatusDesc`<br>`/batteryCapacityLevelDesc` | 无 |
 | ✅ | `BatteryOverviewChargingWeatherCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batterySOCText` | `/chargingStatusDesc`<br>`/batteryCapacityLevelDesc` | 无 |
 | ✅ | `BatteryOverviewLowWeatherCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batterySOCText` | `/chargingStatusDesc`<br>`/batteryCapacityLevelDesc` | 无 |
-| ✅ | `BatteryOverviewTemperatureIconCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batteryTemperatureText` | 无 | 无 |
 | ✅ | `BatteryOverviewStatusIconCompact@1` | 约 2x1；单 Compact + 2 个 PillAction | `/batterySOCText` | 无 | `/batteryCapacityLevelDesc` |
 
 ## CalendarOverview

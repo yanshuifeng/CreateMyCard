@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from api.schemas import GenerateWidgetCardRequest
+from config.config import get_settings
 from core.errors import GenerationStatus
 from models.generation import (
     CandidateDataBinding,
@@ -23,6 +24,7 @@ from models.service import ArtifactSaveResult
 from services import widget_generation_service as widget_generation_service_module
 from services.artifact_store import ArtifactStore
 from services.card_validation import validate_card
+from services.fusion_ball_expander import FUSION_BALL_MIN_PRD_VERSION_CONFIG
 from services.generation_pipeline import (
     DslProcessingResult,
     DslProcessorKind,
@@ -86,7 +88,12 @@ from services.template_generation.engine.cardplan.fusion_ball_background import 
     apply_fusion_ball_background,
     build_fusion_ball_background,
 )
-from services.template_generation.engine.cardplan.models import HybridBodyContract, HybridLimits
+from services.template_generation.engine.cardplan.models import (
+    ActionBinding,
+    HybridBodyContract,
+    HybridLimits,
+)
+from services.template_generation.engine.cardplan.prompt import _ux_layout_action_rule
 from services.template_generation.engine.cardplan.provider_bundle import (
     load_provider_bundle,
     provider_template_family_identity,
@@ -239,7 +246,7 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         if path.is_dir()
     }
 
-    assert len(registry.provider_template_ids) == 99
+    assert len(registry.provider_template_ids) == 95
     assert {
         "ActivityOverviewFull@1",
         "AppUsageOverviewFull@1",
@@ -247,7 +254,6 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         "BatteryOverviewNormalHero@1",
         "BatteryOverviewChargingProgressHero@1",
         "BatteryOverviewHealthLevelHero@1",
-        "BatteryOverviewChargingDiagnosticsHero@1",
         "BluetoothDeviceOverviewEarbudPairFull@1",
         "BluetoothDeviceOverviewCaseStatusCompact@1",
         "BluetoothDeviceOverviewHero@1",
@@ -522,6 +528,34 @@ def test_battery_fusion_theme_covers_phone_and_earphone_businesses() -> None:
     assert registry.first_layer_theme_ids(("BluetoothDeviceOverview",)) == (
         "fusion-battery-teal",
     )
+
+
+def test_search_layout_action_rule_omits_legacy_two_support_instruction() -> None:
+    action = ActionBinding(
+        action_id="action-0",
+        event_id="event.open.weather",
+        display_label="天气详情",
+        call="clickToDeeplink",
+        args={},
+    )
+    contract = HybridBodyContract.model_construct(
+        action_bindings=(action,),
+        content_action_ids=("action-0",),
+        allowed_layout_component_ids=("HeroActionLayout",),
+    )
+
+    search_rule = _ux_layout_action_rule(contract)
+    compatibility_rule = _ux_layout_action_rule(
+        contract.model_copy(
+            update={"allowed_layout_component_ids": ("TwoSupportLayout",)}
+        )
+    )
+
+    assert "layoutActionCandidates" in search_rule
+    assert "TwoSupportLayout" not in search_rule
+    assert "Support Template" not in search_rule
+    assert "TwoSupportLayout" in compatibility_rule
+    assert "Support Template" in compatibility_rule
 
 
 def test_theme_styles_have_distinct_root_content_and_action_scopes() -> None:
@@ -2749,7 +2783,7 @@ async def test_advanced_scope_normalizes_two_support_to_layout_theme() -> None:
 
 
 @pytest.mark.asyncio
-async def test_q094_multi_business_uses_support_templates_with_internal_actions():
+async def test_q094_multi_business_search_is_rejected_before_second_layer():
     task_spec = TaskSpec(
         userQuery="刚睡醒，看看昨晚睡了多久、睡眠得分和今天走了多少步",
         size="2x2",
@@ -2845,25 +2879,20 @@ async def test_q094_multi_business_uses_support_templates_with_internal_actions(
             **_kwargs: Any,
         ) -> str:
             self.second_layer_prompt = prompt
-            return (
-                'Template("TwoSupportLayout@1",{},'
-                'Template("SleepOverviewSupport@1",'
-                '{"actionId":"event.open.sleep.details"}),'
-                'Template("ActivityOverviewSupport@1",'
-                '{"actionId":"event.open.activity.details"}));'
-            )
+            pytest.fail("multi-business Search must not call the second-layer model")
 
     model = Q094TemplateModel()
-    output = await generate_template_a2ui(
-        task_spec,
-        card_spec,
-        (binding,),
-        model,
-        trusted_template_candidate_ids=(
-            "SleepOverviewSupport@1",
-            "ActivityOverviewSupport@1",
-        ),
-    )
+    with pytest.raises(TemplateRouteNotApplicable, match="multiple data businesses"):
+        await generate_template_a2ui(
+            task_spec,
+            card_spec,
+            (binding,),
+            model,
+            trusted_template_candidate_ids=(
+                "SleepOverviewSupport@1",
+                "ActivityOverviewSupport@1",
+            ),
+        )
 
     assert model.first_layer_prompt is not None
     first_layer_payload = json.loads(model.first_layer_prompt[1]["content"])
@@ -2875,31 +2904,7 @@ async def test_q094_multi_business_uses_support_templates_with_internal_actions(
         ]
     }
     assert first_layer_payload["providerFirstLayerRules"]
-    assert model.second_layer_prompt is not None
-    second_layer_prompt = model.second_layer_prompt[1]["content"]
-    assert 'allowedUxLayouts=["TwoSupportLayout"]' in second_layer_prompt
-    assert "PillAction@1" not in second_layer_prompt
-    assert output.template_ids == (
-        "SleepOverviewSupport@1",
-        "ActivityOverviewSupport@1",
-        "TwoSupportLayout@1",
-    )
-    messages = [json.loads(line) for line in output.a2ui.splitlines()]
-    components = {
-        item["id"]: item for item in messages[1]["updateComponents"]["components"]
-    }
-    root = components["root"]
-    assert root["styles"]["backgroundColor"] == "#1A0A59F7"
-    layout = components[root["children"][0]]
-    support_slots = [components[child_id] for child_id in layout["children"]]
-    assert len(support_slots) == 2
-    assert all(
-        slot["styles"]["backgroundColor"] == "#1A2E529E"
-        and slot["styles"]["borderRadius"] == 16
-        for slot in support_slots
-    )
-    assert "event.open.sleep.details" in output.a2ui
-    assert "event.open.activity.details" in output.a2ui
+    assert model.second_layer_prompt is None
 
 
 class _FixedTemplateModel:
@@ -3115,18 +3120,9 @@ def test_battery_facts_accept_numeric_or_text_soc(
     assert facts.level_text == expected_text
 
 
-@pytest.mark.parametrize(
-    "template_id",
-    [
-        "BatteryOverviewStatusIconCompact@1",
-        "BatteryOverviewTemperatureIconCompact@1",
-    ],
-)
-def test_state_independent_battery_compacts_accept_normal_battery_facts(
-    template_id: str,
-) -> None:
+def test_state_independent_battery_compact_accepts_normal_battery_facts() -> None:
     _validate_provider_template_state(
-        template_id,
+        "BatteryOverviewStatusIconCompact@1",
         "default",
         _battery_task(),
         business_names={"BatteryOverview"},
@@ -3449,6 +3445,24 @@ async def test_bluetooth_hero_supports_connection_action() -> None:
     assert "earphoneName" in output.a2ui
     assert "leftBatteryLevel" in output.a2ui
     assert "rightBatteryLevel" in output.a2ui
+    messages = [json.loads(line) for line in output.a2ui.splitlines()]
+    components = {
+        item["id"]: item for item in messages[1]["updateComponents"]["components"]
+    }
+    battery_pair = next(
+        item
+        for item in components.values()
+        if item.get("component") == "Row"
+        and item.get("styles", {}).get("width") == 100
+        and item.get("styles", {}).get("height") == 16
+        and item.get("itemMargin") == 0
+        and item.get("styles", {}).get("justifyContent") == "spaceBetween"
+    )
+    ear_rows = [components[child_id] for child_id in battery_pair["children"]]
+    assert len(ear_rows) == 2
+    assert all(row["component"] == "Row" for row in ear_rows)
+    assert all(row["itemMargin"] == 2 for row in ear_rows)
+    assert all(row["styles"]["justifyContent"] == "start" for row in ear_rows)
 
 
 @pytest.mark.asyncio
@@ -3944,67 +3958,7 @@ async def test_2x2_battery_health_level_hero_uses_health_fields():
 
 
 @pytest.mark.asyncio
-async def test_2x2_battery_charging_diagnostics_hero_uses_key_value_fields():
-    binding = CandidateDataBinding(
-        capabilityId="GetPhoneBatteryInfo",
-        writeResultTo="/data/phoneBattery",
-        candidateOutputFields=[
-            "/chargingStatusDesc",
-            "/nowCurrentText",
-            "/voltageText",
-            "/isBatteryPresentText",
-        ],
-    )
-    task_spec = _battery_task()
-    task_spec.userQuery = "手机充电越来越慢，看看充电电流、电压、电池是否正常，点一下检查电池设置。"
-    task_spec.dataModelSchema["data"]["phoneBattery"] = {
-        "chargingStatusDesc": _provider_field("未充电", "string"),
-        "nowCurrentText": _provider_field("0 mA", "string"),
-        "voltageText": _provider_field("4.1 V", "string"),
-        "isBatteryPresentText": _provider_field("正常", "string"),
-    }
-    model = _FixedTemplateModel(
-        theme_id="battery-yellow",
-        component_id="BatteryOverview",
-        available_template_ids=("BatteryOverviewChargingDiagnosticsHero@1",),
-        capability_id="GetPhoneBatteryInfo",
-        required_fields=(
-            "/chargingStatusDesc",
-            "/nowCurrentText",
-            "/voltageText",
-            "/isBatteryPresentText",
-        ),
-        action_id="event.setPowerSavingMode",
-        body=(
-            'Template("HeroActionLayout@1",{},'
-            'Template("BatteryOverviewChargingDiagnosticsHero@1",{}),'
-            'Template("PillAction@1",{"actionId":"event.setPowerSavingMode",'
-            '"label":"省电模式"}));'
-        ),
-    )
-
-    output = await generate_template_a2ui(
-        task_spec,
-        _battery_card_spec(),
-        (binding,),
-        model,
-        enable_fusion_ball=True,
-    )
-
-    assert output.template_ids == (
-        "BatteryOverviewChargingDiagnosticsHero@1",
-        "PillAction@1",
-        "HeroActionLayout@1",
-    )
-    assert "chargingStatusDesc" in output.a2ui
-    assert "nowCurrentText" in output.a2ui
-    assert "voltageText" in output.a2ui
-    assert "isBatteryPresentText" in output.a2ui
-    assert "batterySOC" not in output.a2ui
-
-
-@pytest.mark.asyncio
-async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
+async def test_2x2_battery_normal_compact_accepts_two_pill_actions():
     action_ids = ("event.setPowerSavingMode", "event.startNavigate")
 
     class TwoActionBatteryModel:
@@ -4015,8 +3969,8 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
                 "themeId": "fusion-battery-teal",
                 "requiredOutputFieldsByCapability": {
                     "GetPhoneBatteryInfo": [
-                        "/batterySOC",
                         "/batterySOCText",
+                        "/chargingStatusDesc",
                         "/batteryCapacityLevelDesc",
                     ]
                 },
@@ -4032,7 +3986,7 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
             self.second_layer_prompt = prompt
             return (
                 'Template("CompactTwoActionLayout@1",{},'
-                'Template("BatteryOverviewProgressCompact@1",{}),'
+                'Template("BatteryOverviewNormalWeatherCompact@1",{}),'
                 'Template("PillAction@1",{"actionId":"event.setPowerSavingMode",'
                 '"label":"省电模式"}),'
                 'Template("PillAction@1",{"actionId":"event.startNavigate",'
@@ -4052,7 +4006,7 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
     )
     task_spec = _battery_task().model_copy(
         update={
-            "userQuery": "下班要开车回家，手机剩12%电，带电量进度条，不够开省电，能导航回家。",
+            "userQuery": "下班要开车回家，显示手机电量和状态，不够开省电，能导航回家。",
             "eventCandidates": [
                 EventAction(
                     id="event.setPowerSavingMode",
@@ -4080,18 +4034,18 @@ async def test_2x2_battery_progress_compact_accepts_two_pill_actions():
     )
 
     assert output.template_ids == (
-        "BatteryOverviewProgressCompact@1",
+        "BatteryOverviewNormalWeatherCompact@1",
         "PillAction@1",
         "CompactTwoActionLayout@1",
     )
     assert model.second_layer_prompt is not None
     second_layer_user = model.second_layer_prompt[1]["content"]
-    assert "BatteryOverviewProgressCompact@1" in second_layer_user
+    assert "BatteryOverviewNormalWeatherCompact@1" in second_layer_user
     assert "CompactTwoActionLayout@1" in output.template_ids
     assert output.a2ui.count('"call":"clickToIntent"') == 2
-    assert "手机电量" in output.a2ui
     assert "batterySOCText" in output.a2ui
-    assert "batterySOC" in output.a2ui
+    assert "chargingStatusDesc" in output.a2ui
+    assert "batteryCapacityLevelDesc" in output.a2ui
     assert "省电模式" in output.a2ui and "开始导航" in output.a2ui
     messages = [json.loads(line) for line in output.a2ui.splitlines()]
     components = {
@@ -5182,6 +5136,11 @@ async def test_terse_entry_uses_compact_template_source_with_fusion_ball_theme(m
         ),
     )
     captured: dict[str, Any] = {}
+    monkeypatch.setattr(
+        get_settings(),
+        "CONFIG",
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: "11.7.5.206"},
+    )
 
     monkeypatch.setattr(
         facade,
@@ -6080,7 +6039,7 @@ async def test_policy_layer_configures_template_source_generator(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_template_source_generator_uses_task_spec_app_version_gate(monkeypatch):
+async def test_template_source_generator_uses_task_spec_prd_ver_gate(monkeypatch):
     observed_flags: list[bool] = []
 
     async def capture_source(
@@ -6095,6 +6054,11 @@ async def test_template_source_generator_uses_task_spec_app_version_gate(monkeyp
         "services.template_generation.source_generator.request_template_source_dsl",
         capture_source,
     )
+    monkeypatch.setattr(
+        get_settings(),
+        "CONFIG",
+        {FUSION_BALL_MIN_PRD_VERSION_CONFIG: "11.7.5.206"},
+    )
     generator = TemplateSourceGenerator()
     generator.processor_kind = DslProcessorKind.DESIGN_COMPACT
     generator.protocol_profile = {"id": A2UI_FORM_PROTOCOL_PROFILE_ID}
@@ -6108,9 +6072,9 @@ async def test_template_source_generator_uses_task_spec_app_version_gate(monkeyp
     )
 
     disabled_task = _weather_task_spec().model_copy(
-        update={"appVersion": "11.7.5.205"}
+        update={"prdVer": "11.7.5.205"}
     )
-    enabled_task = disabled_task.model_copy(update={"appVersion": "11.7.5.206"})
+    enabled_task = disabled_task.model_copy(update={"prdVer": "11.7.5.206"})
     assert await generator(disabled_task, _weather_card_spec(), ()) == "template-source"
     assert await generator(enabled_task, _weather_card_spec(), ()) == "template-source"
     assert observed_flags == [False, True]

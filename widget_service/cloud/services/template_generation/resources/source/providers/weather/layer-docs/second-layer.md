@@ -17,8 +17,9 @@
 - Compact 只用于 `CompactTwoActionLayout@1` 加两个 `PillAction@1`；Hero 只用于
   `HeroActionLayout@1` 加一个 `PillAction@1`；Full 用于无 Action，或搭配一个语义匹配的
   `IconAction@1`。
-- Support 只用于 `TwoSupportLayout@1`。该业务有已批准事件时传入 `actionId`；没有对应事件时省略，
-  模板根节点不生成 `onClick`。
+- Support 仅供兼容 LLM 路径与原子预览使用，当前 Search 不可达；在兼容路径中只用于
+  `TwoSupportLayout@1`。该业务有已批准事件时传入 `actionId`；没有对应事件时省略，模板根节点不生成
+  `onClick`。
 - Props 只能使用本轮 Prompt 下发的可信素材或批准事件 ID，不得输出数据路径。
 - 选择能够完整表达用户显式字段且自身 `primaryData` 与 `secondaryData` 全部可用的模板。
 - `conditionIcon` 必须表达本轮 `/current/condition` 对应的天气现象，不得用泛天气、时钟、日历或秒表

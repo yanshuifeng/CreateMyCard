@@ -7,8 +7,8 @@
     `HeroActionLayout@1` 加一个 `PillAction@1`。
   - `BluetoothDeviceOverviewCaseStatusCompact@1`：展示盒电量和充电状态，可选左右耳充电状态；
     `deviceIcon` 必填，`headerLabel` 可选；用于 `CompactTwoActionLayout@1` 加两个 `PillAction@1`。
-  - `BluetoothDeviceOverviewEarbudsSupport@1`：展示左右耳电量；`deviceIcon` 必填；双业务场景中可传
-    `actionId`，事件绑定在 Support 根节点内部。
+  - `BluetoothDeviceOverviewEarbudsSupport@1`：展示左右耳电量；`deviceIcon` 必填；仅供兼容 LLM 路径
+    与原子预览使用，当前 Search 不可达；兼容双业务场景中可传 `actionId`，事件绑定在 Support 根节点内部。
   - `BluetoothDeviceOverviewEarbudPairFull@1`：展示连接状态、设备名、盒电量和左右耳电量；盒与左右耳
     图标均可选；用于无 Action 的 Full，或搭配一个 `IconAction@1`。
   - `BluetoothDeviceOverviewEarbudPairCompact@1`：展示设备名和左右耳电量，左右耳图标可选；用于
@@ -17,7 +17,8 @@
     `BluetoothDeviceOverviewEarbudsDynamicWideFull@1`：宽版连接摘要，盒与左右耳电量均为可选数据。
   - `BluetoothDeviceOverviewCompleteWideFull@1`、
     `BluetoothDeviceOverviewCompletePhoneWideFull@1`：宽版完整电量摘要，盒与左右耳电量均为必选数据。
-- Support 的 `actionId` 只在该业务有已批准事件时传入；没有对应事件时省略，根节点不生成 `onClick`。
+- 兼容路径中的 Support `actionId` 只在该业务有已批准事件时传入；没有对应事件时省略，根节点不生成
+  `onClick`。
 - `headerLabel` 只能逐字复用 `cardComposition.businessTitleCandidate`；没有可信标题时省略。
 - Props 只能使用本轮 Prompt 下发的可信文本或素材，不得输出数据路径。
 - 选择能够完整表达用户显式字段且自身 `primaryData` 与 `secondaryData` 全部可用的模板。

@@ -172,6 +172,10 @@ ROM CLS-AL30 6.0.0.328 → 6.0
 没有命中且 `enable_default_protocol_profile_fallback=true` 时，使用配置中的默认 Profile。请求中传入的
 `protocolProfileId` 会被路由选择结果覆盖。
 
+上述默认值只服务于协议 Profile 和能力注册表选择，不参与融球门禁。TaskSpec 始终原样保留请求
+`prdVer`；服务从 `CONFIG.fusion_ball_min_prd_version` 读取最低版本。配置或请求版本缺失、为空、非法，
+或者 `prdVer` 低于配置版本时都关闭融球；只有两边均合法且 `prdVer` 大于等于配置版本时开启。
+
 ## 5. 路由策略
 
 最终构造的 `GenerationRoutePolicy`：
@@ -265,6 +269,7 @@ TaskSpec 中的数据结构由能力 `outputSchema` 还原：
 {
   "userQuery": "帮我做一个通勤天气卡片",
   "size": "2x4",
+  "prdVer": "11.7.5.206",
   "eventCandidates": [],
   "dataModelSchema": {
     "data": {
@@ -333,6 +338,7 @@ cloud/data/protocol_profiles/design-compact-dsl/PROMPT.md
 {
   "userQuery": "帮我做一个通勤天气卡片",
   "size": "2x4",
+  "prdVer": "11.7.5.206",
   "eventCandidates": [],
   "dataModelSchema": {
     "data": {

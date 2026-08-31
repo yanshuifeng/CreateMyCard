@@ -36,7 +36,7 @@ class GeneratedDsl:
 async def generate_dsl_from_task_spec(task_spec: dict[str, Any]) -> GeneratedDsl:
     """复用第四接口的 Prompt、模型客户端和转换器，从 TaskSpec 生成 DSL。"""
     validated_task_spec = TaskSpec.model_validate(task_spec)
-    task_spec_value = validated_task_spec.model_dump(mode="json", exclude_none=True)
+    task_spec_value = validated_task_spec.model_dump(mode="json")
     settings = get_settings()
     design_profile_id = settings.design_compact_profile_id
     system_prompt = A2UIProtocolRegistry.read_design_prompt(design_profile_id)

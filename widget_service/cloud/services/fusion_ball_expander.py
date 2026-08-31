@@ -12,7 +12,9 @@ from typing import Any
 
 from packaging.version import InvalidVersion, Version
 
-FUSION_BALL_MIN_APP_VERSION = "11.7.5.205"
+from config.config import get_settings
+
+FUSION_BALL_MIN_PRD_VERSION_CONFIG = "fusion_ball_min_prd_version"
 FUSION_BALL_CONTENT_ID_PREFIX = "__genui_render_component__"
 FUSION_BALL_DESIGN_TOKENS = (
     "fusion-ball-weather-blue",
@@ -23,7 +25,6 @@ FUSION_BALL_DESIGN_TOKENS = (
     "fusion-ball-sport-orange",
 )
 
-_VERSION_PATTERN = re.compile(r"\d+(?:\.\d+)*")
 _BASE_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$")
 _ARGB_COLOR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{8}$")
 _FUSION_ROOT_TYPES = frozenset({"Row", "Column", "Stack"})
@@ -70,28 +71,19 @@ class FusionBallPalette:
     small: str
 
 
-def normalize_app_version(app_version: Any) -> str:
-    """Extract the numeric client version used by the internal TaskSpec."""
-    if not isinstance(app_version, str):
-        return "0"
-    match = _VERSION_PATTERN.search(app_version)
-    if match is None:
-        return "0"
-    normalized = match.group(0)
+def fusion_ball_enabled(prd_ver: Any) -> bool:
+    """按配置最低版本和请求 prdVer 以失效关闭方式裁决融球。"""
+    minimum = get_settings().CONFIG.get(FUSION_BALL_MIN_PRD_VERSION_CONFIG)
+    if not isinstance(prd_ver, str) or not isinstance(minimum, str):
+        return False
+    if not prd_ver or not minimum:
+        return False
     try:
-        Version(normalized)
-    except InvalidVersion:
-        return "0"
-    return normalized
-
-
-def fusion_ball_enabled(app_version: Any) -> bool:
-    """Enable fusion balls only above the strict client-version threshold."""
-    normalized = normalize_app_version(app_version)
-    try:
-        return Version(normalized) > Version(FUSION_BALL_MIN_APP_VERSION)
+        requested_version = Version(prd_ver)
+        minimum_version = Version(minimum)
     except InvalidVersion:
         return False
+    return requested_version >= minimum_version
 
 
 def build_fusion_ball_content_id(original_id: str) -> str:
@@ -135,10 +127,10 @@ def fusion_ball_palette_for_root(
     components: list[Any],
     *,
     size: str,
-    app_version: Any,
+    prd_ver: Any,
 ) -> FusionBallPalette | None:
     """Resolve a root fusion Style Design Token under the request version gate."""
-    if size != "2x2" or not fusion_ball_enabled(app_version):
+    if size != "2x2" or not fusion_ball_enabled(prd_ver):
         return None
     roots = [item for item in components if _component_id(item) == "root"]
     if len(roots) != 1:

@@ -37,7 +37,7 @@ class TemplateSourceGenerator:
             raise RuntimeError("TemplateSourceGenerator protocol profile is not configured")
         if self.model_request_context is None:
             raise RuntimeError("TemplateSourceGenerator model context is not configured")
-        enable_fusion_ball = fusion_ball_enabled(task_spec.appVersion)
+        enable_fusion_ball = fusion_ball_enabled(task_spec.prdVer)
         return await request_template_source_dsl(
             task_spec,
             card_spec,

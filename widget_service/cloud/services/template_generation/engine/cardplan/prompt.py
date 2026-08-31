@@ -640,16 +640,21 @@ def _ux_layout_action_rule(contract: HybridBodyContract) -> str:
     ]
     if not actions:
         return "本次没有批准 Action；必须选择 actionPolicy=none/optional 的布局并省略 Action。"
-    return (
+    action_rule = (
         "layoutActionCandidates="
         + json.dumps(actions, ensure_ascii=False)
         + "；按所选布局的 Action 数量范围选择且不得重复 actionId；"
         "PillAction@1 的 actionId/label 必须来自同一候选，icon 可从 "
         "actionIconCandidates 选择；IconAction@1 必须填写批准的 actionId/icon。"
-        "TwoSupportLayout 不生成 Action child，批准 actionId 必须各一次写入语义匹配的 "
-        "Support Template；"
-        "事件由服务端可信 Lowering 注入，禁止输出 call/args/onClick。"
     )
+    two_support_allowed = "TwoSupportLayout" in contract.allowed_layout_component_ids
+    if two_support_allowed:
+        action_rule += (
+            "TwoSupportLayout 不生成 Action child，批准 actionId 必须各一次写入语义匹配的 "
+            "Support Template；"
+        )
+    action_rule += "事件由服务端可信 Lowering 注入，禁止输出 call/args/onClick。"
+    return action_rule
 
 
 def _resolve_theme(task_spec: TaskSpec, ui_brief: Any, registry: CardPlanRegistry) -> str:

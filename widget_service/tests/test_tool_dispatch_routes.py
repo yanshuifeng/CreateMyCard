@@ -810,20 +810,11 @@ def test_overview_interface_does_not_filter_assets_by_app_version():
 
 
 def test_generation_routes_lock_and_isolate_protocol_profiles(monkeypatch):
-    """验证两个生成接口隔离协议。
-
-    同时确认 deviceInfo.prdVer 会覆盖 content 中的同名字段。
-    """
+    """验证两个生成接口使用各自默认后端，并隔离协议和转换流程。"""
     settings = get_settings()
     monkeypatch.setattr(settings, "a2ui_form_model_backend", "mep")
     monkeypatch.setattr(settings, "design_compact_model_backend", "openai")
     model_calls = []
-    observed_fusion_prd_versions = []
-
-    monkeypatch.setattr(
-        "services.widget_generation_service.fusion_ball_enabled",
-        lambda prd_ver: observed_fusion_prd_versions.append(prd_ver) or False,
-    )
 
     def capture_model_call(client, prompt, protocol_profile):
         model_calls.append(
@@ -853,7 +844,6 @@ def test_generation_routes_lock_and_isolate_protocol_profiles(monkeypatch):
     client = TestClient(app)
     generation_content = {
         "bundleName": "com.omega_w_0823.hmservice",
-        "prdVer": "99.99.99.99",
         "userQuery": "生成一张静态天气卡片",
         "size": "2x4",
         "title": "天气速览",
@@ -917,10 +907,6 @@ def test_generation_routes_lock_and_isolate_protocol_profiles(monkeypatch):
         json.loads(line) for line in compact_artifact["genui"].splitlines()
     ]
     assert compact_artifact["meta"]["protocolProfileId"] == "a2ui-form-rom6.0-v1"
-    assert "prdVer" not in a2ui_artifact["taskSpec"]
-    assert "appVersion" not in a2ui_artifact["taskSpec"]
-    assert "prdVer" not in compact_artifact["taskSpec"]
-    assert "appVersion" not in compact_artifact["taskSpec"]
     assert saved_design_compact_dsls[1].startswith(
         '["root","Column"'
     )
@@ -932,16 +918,10 @@ def test_generation_routes_lock_and_isolate_protocol_profiles(monkeypatch):
     assert json.loads(saved_request_bodies[0]) == a2ui_request
     assert saved_request_bodies[1] == compact_request_text
     assert [item["backend"] for item in model_calls] == ["mep", "openai"]
-    assert observed_fusion_prd_versions == [APP_VERSION, APP_VERSION]
     assert model_calls[1]["protocolProfile"] == {
         "id": "design-compact-dsl",
         "format": "compact-dsl",
     }
-    compact_task_spec = json.loads(model_calls[1]["prompt"][1]["content"])
-    assert "prdVer" not in compact_task_spec
-    assert "appVersion" not in compact_task_spec
-    assert '"prdVer"' not in model_calls[0]["prompt"][0]["content"]
-    assert '"appVersion"' not in model_calls[0]["prompt"][0]["content"]
     design_prompt = (
         CLOUD_ROOT / "data" / "protocol_profiles" / "design-compact-dsl" / "PROMPT.md"
     ).read_text(encoding="utf-8")

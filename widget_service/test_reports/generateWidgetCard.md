@@ -23,7 +23,7 @@
       {
         "capabilityId": "ViewWeather",
         "arguments": {
-          "prefectureName": "上海市",
+          "districtName": "上海",
           "forecastDays": 1
         },
         "writeResultTo": "/data/weather",
@@ -31,7 +31,8 @@
           "/location/districtName",
           "/current/temperatureText",
           "/current/condition",
-          "/current/airQuality"
+          "/current/airQuality",
+          "/updatedAt"
         ]
       }
     ],
@@ -95,7 +96,7 @@
   "errorMessage": "",
   "reply": {
     "streamInfo": {
-      "streamContent": "type='result' tool='generateWidgetCard' operation='generateWidgetCard' requestId='7676c2c8-a6d3-413c-8074-c62ed30db8de&3' data={'status': 'success', 'artifactUrl': 'https://test.invalid/widget/artifact.md', 'artifactDigest': 'sha256:test-artifact', 'suggestSize': '2x4', 'message': '已为你生成可用的桌面卡片。', 'removedCapabilities': [], 'errorCode': '', 'effectiveCapabilities': {'data': ['ViewWeather'], 'event': [{'id': 'event.open.weather', 'description': '打开天气应用中与当前卡片城市对应的天气详情页。', 'call': 'clickToDeeplink', 'args': {'intentName': 'Weather_CityCode', 'bundleName': '', 'abilityName': '', 'uri': \"{{ 'hww://www.huawei.com/totemweather?enterType=share&cityCode=' + ${/data/weather/location/cityCode} }}\"}}], 'asset': ['asset.drop_1']}} status='success' errorCode='' error={}",
+      "streamContent": "type='result' tool='generateWidgetCard' operation='generateWidgetCard' requestId='7676c2c8-a6d3-413c-8074-c62ed30db8de&3' data={'apiVersion': 'v1', 'status': 'success', 'artifactUrl': 'https://test.invalid/widget/artifact.md', 'artifactDigest': 'sha256:test-artifact', 'suggestSize': '2x4', 'message': '已为你生成可用的桌面卡片。', 'removedCapabilities': [], 'errorCode': '', 'effectiveCapabilities': {'data': ['ViewWeather'], 'event': [{'id': 'event.open.weather', 'call': 'clickToDeeplink', 'args': {'intentName': 'Weather_CityCode', 'bundleName': '', 'abilityName': '', 'uri': \"{{ 'hww://www.huawei.com/totemweather?enterType=share&cityCode=' + ${/data/weather/location/cityCode} }}\"}}], 'asset': ['asset.drop_1']}} status='success' errorCode='' error={}",
       "streamingTextId": "7676c2c8-a6d3-413c-8074-c62ed30db8de&3",
       "streamType": "final",
       "textType": "plainText"

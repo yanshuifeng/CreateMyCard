@@ -109,15 +109,6 @@ def test_preflight_accepts_weather_without_district_and_builds_specs():
     assert weather_schema["location"]["cityCode"]
 
 
-@pytest.mark.parametrize("prd_ver", ["CreateMyCard/11.7.5.206", "", None])
-def test_preflight_does_not_copy_request_prd_version_into_task_spec(prd_ver):
-    result = _run(_request(prdVer=prd_ver))
-
-    assert result.blocking_issues == ()
-    assert result.task_spec is not None
-    assert "prdVer" not in result.task_spec.model_dump(mode="json")
-
-
 def test_preflight_reports_exact_missing_weather_argument_path():
     request = _request(
         candidateDataBindings=[

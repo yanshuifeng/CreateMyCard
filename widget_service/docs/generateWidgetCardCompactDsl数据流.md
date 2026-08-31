@@ -172,13 +172,6 @@ ROM CLS-AL30 6.0.0.328 → 6.0
 没有命中且 `enable_default_protocol_profile_fallback=true` 时，使用配置中的默认 Profile。请求中传入的
 `protocolProfileId` 会被路由选择结果覆盖。
 
-上述默认值只服务于协议 Profile 和能力注册表选择，不参与融球门禁。新版包络路由从本次接口
-`request.deviceInfo.prdVer` 提取门禁版本并映射到内部生成请求，生成服务在请求边界结合
-`CONFIG.fusion_ball_min_prd_version` 计算融球开关。配置或请求版本缺失、为空、非法，或者请求版本低于配置
-版本时都关闭融球；只有两边均合法且请求版本大于等于配置
-版本时开启。请求版本不写入五字段 `task-spec-v1`，也不进入 LLM Prompt 消息中的 TaskSpec 或 artifact TaskSpec。
-门禁不得改用 `session.clientVersion`、`session.prdVer` 或带默认值的 `ModelRequestContext.app_version`。
-
 ## 5. 路由策略
 
 最终构造的 `GenerationRoutePolicy`：

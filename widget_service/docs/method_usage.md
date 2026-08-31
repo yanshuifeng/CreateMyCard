@@ -945,12 +945,6 @@ dataModelSchema
 assetCandidates
 ```
 
-TaskSpec 保持 `task-spec-v1` 五字段契约，不包含 `prdVer` 或 `appVersion`。新版包络路由从本次接口
-`request.deviceInfo.prdVer` 提取版本并映射到内部生成请求，生成服务在请求边界结合
-`CONFIG.fusion_ball_min_prd_version` 计算融球门禁；配置或请求版本缺失、为空、
-非法，或者请求版本低于配置版本时返回关闭。请求版本及其规范化副本不进入 LLM Prompt 消息中的 TaskSpec，
-也不写入 artifact 中的 TaskSpec。
-
 `eventCandidates[]` 固定包含同层级的 `id/description/call/args`。其中 `description` 来自事件能力注册表，
 只帮助模型理解事件用途；生成的事件处理器仍必须逐字段复用候选 `call/args`。
 

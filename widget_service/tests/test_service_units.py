@@ -2612,6 +2612,7 @@ def test_design_compact_create_prompt_is_plain_task_spec_json():
         }
     ]
 
+
 @pytest.mark.asyncio
 async def test_a2ui_model_client_returns_mock_dat_without_processing():
     """验证 mock A2UI 直接返回 mock.dat 原始内容。
@@ -4286,20 +4287,13 @@ async def test_artifact_store_returns_structured_save_result(tmp_path, monkeypat
             "description": "查看当前天气",
             "suggestSize": "2x4",
         },
-        taskSpec={
-            "userQuery": "生成天气卡片",
-            "size": "2x4",
-            "eventCandidates": [],
-            "dataModelSchema": {"data": {}},
-            "assetCandidates": [],
-        },
+        taskSpec={"dataModelSchema": {"data": {}}},
         meta=ArtifactMeta(
             protocolProfileId="a2ui-form-rom6.0-v1",
             capabilityRegistryVersion=REGISTRY_VERSION_6,
             createdAt=1,
         ),
     )
-    assert artifact.meta.taskSpecVersion == "task-spec-v1"
     design_compact_dsl = (
         '["root","Column",{"width":"matchParent","height":140},[]]'
     )
@@ -4525,13 +4519,7 @@ def test_artifact_validator_rejects_legacy_component_shape():
     artifact = WidgetArtifact(
         genui=genui,
         cardSpec={"suggestSize": "2x4"},
-        taskSpec={
-            "userQuery": "生成天气卡片",
-            "size": "2x4",
-            "eventCandidates": [],
-            "dataModelSchema": {"data": {}},
-            "assetCandidates": [],
-        },
+        taskSpec={"dataModelSchema": {"data": {}}},
         meta=ArtifactMeta(
             protocolProfileId="a2ui-form-rom6.0-v1",
             capabilityRegistryVersion=REGISTRY_VERSION_6,

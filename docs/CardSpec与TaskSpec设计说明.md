@@ -95,7 +95,7 @@ CardSpec 不复制 `outputSchema`，也不是 DataModel 本身。三者分工如
 
 ## 4. TaskSpec：A2UI 模型的受控输入
 
-TaskSpec 使用 `task-spec-v1`，顶层固定为五个字段：
+TaskSpec 顶层固定为五个字段：
 
 | 字段 | 作用 |
 | --- | --- |
@@ -149,12 +149,7 @@ TaskSpec 使用 `task-spec-v1`，顶层固定为五个字段：
 
 ### 4.2 不应加入的内容
 
-TaskSpec 顶层不得扩展 `cardSpec`、`rules`、`capabilitySchemas`、`dataModel`、`title`、`description`、
-`prdVer`、`appVersion`、布局或字体等字段。协议和美观规则由微服务通过模型提示词和 profile 提供，不通过
-TaskSpec 私自扩展。新版包络路由从本次接口 `request.deviceInfo.prdVer` 提取版本并映射到内部生成请求，
-生成服务在请求边界结合 `CONFIG.fusion_ball_min_prd_version` 计算融球门禁；配置或请求版本缺失、为空、
-非法，或者请求版本低于配置版本时
-关闭。请求版本及其规范化副本不进入 LLM Prompt 消息中的 TaskSpec，也不写入 artifact 中的 TaskSpec。
+TaskSpec 顶层不得扩展 `cardSpec`、`rules`、`capabilitySchemas`、`dataModel`、`title`、`description`、布局或字体等字段。协议和美观规则由微服务通过模型提示词和 profile 提供，不通过 TaskSpec 私自扩展。
 
 ## 5. 两类契约如何保持一致
 
@@ -177,7 +172,7 @@ TaskSpec 私自扩展。新版包络路由从本次接口 `request.deviceInfo.pr
 - CardSpec 是否只包含最终有效的数据能力，且入参符合 `inputSchema`？
 - 静态卡是否省略 `dataBindings`，动态卡是否存在合法 binding？
 - 所有 `writeResultTo` 是否位于 `/data/...` 且互不冲突？
-- TaskSpec 是否保持 `task-spec-v1` 且严格只有五个顶层字段？
+- TaskSpec 是否严格只有五个顶层字段？
 - `dataModelSchema` 是否仅保留界面需要的字段，并使用脱敏样例？
 - DSL 的动态绑定和事件参数是否都可从 CardSpec、能力 schema 或 TaskSpec 投影推导？
 - 事件与素材是否只来自本次有效候选？

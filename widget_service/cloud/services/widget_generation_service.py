@@ -1265,7 +1265,7 @@ class WidgetGenerationService:
         )
         profiled_request._model_request_context = request._model_request_context
         profiled_request._raw_request_body = request._raw_request_body
-        # 新包络路由把本次 request.deviceInfo.prdVer 映射到内部 request.prdVer。
+        # 新包络路由把外部 ToolRequestEnvelope.deviceInfo.prdVer 映射到内部 request.prdVer。
         # 门禁只在服务端流转，不进入 TaskSpec 或模型输入，
         # 并在两条生成链路间共享。
         enable_fusion_ball = fusion_ball_enabled(profiled_request.prdVer)

@@ -1965,9 +1965,24 @@ def test_pr7_visual_fixes_are_encoded_in_provider_cardtpl_variants():
     registry = get_cardplan_registry()
 
     countdown = registry.require_variant("CountdownOverviewFull@1", "default").root
-    assert _template_node_options(countdown)["justifyContent"] == "start"
-    assert _template_node_options(countdown.children[1])["justifyContent"] == "center"
-    assert _template_node_options(countdown.children[1].children[0])["justifyContent"] == "center"
+    assert _template_node_options(countdown)["justifyContent"] == "center"
+    countdown_value_row = countdown.children[2]
+    assert countdown_value_row.component == "Row"
+    assert _template_node_options(countdown_value_row)["justifyContent"] == "center"
+    assert len(countdown_value_row.children) == 2
+    countdown_value, transparent_unit = countdown_value_row.children
+    assert countdown_value.component == "Text"
+    assert countdown_value.values[0].kind == "binding"
+    assert countdown_value.values[0].name == "days"
+    assert transparent_unit.component == "Text"
+    assert transparent_unit.values[0].value == "天"
+    assert _template_node_options(transparent_unit)["fontColor"] == "#00000000"
+    visible_unit = countdown.children[3]
+    assert visible_unit.component == "Text"
+    assert visible_unit.values[0].value == "天"
+    visible_unit_color = visible_unit.values[-1].properties["fontColor"]
+    assert visible_unit_color.kind == "theme"
+    assert visible_unit_color.name == "supportContentColor"
 
     app_usage = registry.require_variant("AppUsageOverviewFull@1", "default").root
     assert _template_node_options(app_usage)["justifyContent"] == "start"
@@ -4329,6 +4344,31 @@ async def test_generic_countdown_query_uses_countdown_overview_without_workout_s
     assert "countdownDays" in output.a2ui
     assert "倒计时" in output.a2ui
     assert "运动倒计时" not in output.a2ui
+    reporter = validate_card(
+        artifact={
+            "genui": output.a2ui,
+            "cardSpec": card_spec,
+            "effectiveCapabilities": {
+                "data": [
+                    {
+                        "id": "GetCountdownDays",
+                        "type": "data",
+                        "outputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "countdownDays": {
+                                    "type": "integer",
+                                    "displayUnits": ["天"],
+                                    "unitIncluded": False,
+                                }
+                            },
+                        },
+                    }
+                ]
+            },
+        }
+    )
+    assert not reporter.has_code("DISPLAY_UNIT_MISSING", "DISPLAY_UNIT_DUPLICATED")
 
 
 class WeatherTemplateModel:

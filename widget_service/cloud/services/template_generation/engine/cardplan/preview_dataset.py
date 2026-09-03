@@ -25,6 +25,8 @@ from .provider_bundle import provider_template_layout_kind
 from .registry import CardPlanRegistry
 
 TemplateLayoutKind = Literal[
+    "HeroTitle",
+    "HeroContent",
     "Support",
     "Compact",
     "Hero",
@@ -35,15 +37,19 @@ TemplateLayoutKind = Literal[
 ]
 
 _LAYOUT_ORDER = {
-    "Support": 0,
-    "Compact": 1,
-    "Hero": 2,
-    "Full": 3,
-    "WideHero": 4,
-    "WideFull": 5,
-    "WideHalf": 6,
+    "HeroTitle": 0,
+    "HeroContent": 1,
+    "Support": 2,
+    "Compact": 3,
+    "Hero": 4,
+    "Full": 5,
+    "WideHero": 6,
+    "WideFull": 7,
+    "WideHalf": 8,
 }
 _SIZE_BY_LAYOUT: dict[TemplateLayoutKind, Literal["2x2", "2x4"]] = {
+    "HeroTitle": "2x2",
+    "HeroContent": "2x2",
     "Support": "2x2",
     "Compact": "2x2",
     "Hero": "2x2",
@@ -53,6 +59,8 @@ _SIZE_BY_LAYOUT: dict[TemplateLayoutKind, Literal["2x2", "2x4"]] = {
     "WideHalf": "2x4",
 }
 _CONTENT_HEIGHT_BY_LAYOUT: dict[TemplateLayoutKind, int] = {
+    "HeroTitle": 24,
+    "HeroContent": 54,
     "Support": 68,
     "Compact": 68,
     "Hero": 124,

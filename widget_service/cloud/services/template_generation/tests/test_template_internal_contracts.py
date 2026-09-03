@@ -7,8 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from models.generation import TaskSpec
+from models.generation import EventAction, TaskSpec
+from services.template_generation.engine.advanced.models import AdvancedScopeBrief
 from services.template_generation.engine.advanced.ux_mixed_prompt import (
+    _filter_positional_second_layer_template_candidates,
+    _layout_output_option,
+    _second_layer_layout_selection,
     _weather_builtin_assets_for_components,
 )
 from services.template_generation.engine.cardplan.compiler import (
@@ -307,6 +311,7 @@ def test_checked_in_layout_templates_use_concrete_container_blueprints() -> None
         "HeroActionLayout@1": 2,
         "FullIconActionLayout@1": 2,
         "CompactTwoActionLayout@1": 3,
+        "HeroTitleContentActionLayout@1": 3,
         "TwoSupportLayout@1": 2,
         "WideFullOnlyLayout@1": 1,
         "WideTwoFullLayout@1": 2,
@@ -562,6 +567,25 @@ def test_provider_template_layout_suffix_combinations_are_enforced() -> None:
         (),
         "2x2",
     )
+    _validate_provider_template_layout_action_requirements(
+        "HeroTitleContentActionLayout",
+        (
+            template("WeatherOverviewHeroTitle@1"),
+            template("ScheduleOverviewHeroContent@1"),
+        ),
+        (pill_one,),
+        "2x2",
+    )
+    with pytest.raises(TerselConversionError, match="order is invalid"):
+        _validate_provider_template_layout_action_requirements(
+            "HeroTitleContentActionLayout",
+            (
+                template("ScheduleOverviewHeroContent@1"),
+                template("WeatherOverviewHeroTitle@1"),
+            ),
+            (pill_one,),
+            "2x2",
+        )
     with pytest.raises(TerselConversionError, match="layout combination is invalid"):
         _validate_provider_template_layout_action_requirements(
             "TwoSupportLayout",
@@ -744,6 +768,128 @@ def test_provider_template_layout_suffix_combinations_are_enforced() -> None:
             (pill_one,),
             "2x2",
         )
+
+
+def test_second_layer_projects_ordered_dual_business_layout_contract() -> None:
+    registry = get_cardplan_registry()
+    task_spec = TaskSpec(
+        userQuery="显示天气和日程，并提供查看入口",
+        size="2x2",
+        eventCandidates=[
+            EventAction(
+                id="event.open.details",
+                description="查看详情",
+                call="clickToDeeplink",
+                args={"uri": "example://details"},
+            )
+        ],
+        dataModelSchema={"data": {}},
+    )
+    scope = AdvancedScopeBrief(
+        themeId="family-weather-care-blue",
+        advancedComponentIds=("WeatherOverview", "CalendarOverview"),
+    )
+
+    selection = _second_layer_layout_selection(scope, task_spec, (), registry)
+    filtered, groups = _filter_positional_second_layer_template_candidates(
+        {
+            "WeatherOverview": (
+                "WeatherOverviewHeroTitle@1",
+                "WeatherOverviewHero@1",
+            ),
+            "CalendarOverview": (
+                "ScheduleOverviewHeroContent@1",
+                "ScheduleOverviewNextEventHero@1",
+            ),
+        },
+        (
+            ("WeatherOverviewHeroTitle@1", "WeatherOverviewHero@1"),
+            (
+                "ScheduleOverviewHeroContent@1",
+                "ScheduleOverviewNextEventHero@1",
+            ),
+        ),
+        selection.business_layout_kinds_by_position,
+    )
+    option = _layout_output_option(
+        "HeroTitleContentActionLayout@1",
+        groups,
+        ({"actionId": "action-0", "label": "查看详情"},),
+        ("PillAction@1",),
+    )
+
+    assert selection.layout_ids == ("HeroTitleContentActionLayout",)
+    assert selection.business_layout_kinds_by_position == (
+        "HeroTitle",
+        "HeroContent",
+    )
+    assert filtered == {
+        "WeatherOverview": ("WeatherOverviewHeroTitle@1",),
+        "CalendarOverview": ("ScheduleOverviewHeroContent@1",),
+    }
+    assert option["businessTemplateIdsByPosition"] == groups
+    assert option["actionChildren"][0]["position"] == 2
+    assert option["actionChildren"][0]["templateId"] == "PillAction@1"
+
+
+@pytest.mark.parametrize(
+    ("layout_id", "kinds", "action_count", "action_template_ids"),
+    [
+        ("WideFullOnlyLayout", ("WideFull",), 0, ()),
+        ("WideSingleFocusLayout", ("WideHero",), 1, ("PillAction@1",)),
+        ("WideTwoFullLayout", ("Full", "Full"), 0, ()),
+        ("WideFullHeroActionLayout", ("Full", "Hero"), 1, ("PillAction@1",)),
+        ("WideFullTwoCompactLayout", ("Full", "Compact", "Compact"), 0, ()),
+        ("WideFullHeroTwoActionLayout", ("Full", "Hero"), 2, ("PillAction@1",)),
+        ("WideFullFourActionLayout", ("Full",), 4, ("LargeIconAction@1",)),
+        ("WideTwoHalfLayout", ("WideHalf", "WideHalf"), 0, ()),
+        ("WideHalfTwoCompactLayout", ("WideHalf", "Compact", "Compact"), 0, ()),
+        (
+            "WideHalfCompactTwoLargeActionLayout",
+            ("WideHalf", "Compact"),
+            2,
+            ("LargeIconAction@1",),
+        ),
+        ("WideHalfFourLargeActionLayout", ("WideHalf",), 4, ("LargeIconAction@1",)),
+    ],
+)
+def test_pr222_port_preserves_wide_layout_selection(
+    layout_id: str,
+    kinds: tuple[str, ...],
+    action_count: int,
+    action_template_ids: tuple[str, ...],
+) -> None:
+    """2x2 新布局不得覆盖目标分支已有的 2x4 槽位与动作形态。"""
+    events = []
+    for index in range(action_count):
+        events.append(
+            EventAction(
+                id=f"event.details.{index}",
+                description="查看详情",
+                call="clickToDeeplink",
+                args={"uri": f"example://details/{index}"},
+            )
+        )
+    task_spec = TaskSpec(
+        userQuery="检查宽版布局候选",
+        size="2x4",
+        eventCandidates=events,
+        dataModelSchema={"data": {}},
+    )
+    component_ids = ("WeatherOverview", "BatteryOverview", "CalendarOverview")
+    scope = AdvancedScopeBrief(
+        themeId="family-weather-care-blue",
+        advancedComponentIds=component_ids[:len(kinds)],
+    )
+    families = ("WeatherOverview", "BatteryOverview", "ScheduleOverview")
+    groups = tuple((f"{families[index]}{kind}@1",) for index, kind in enumerate(kinds))
+
+    selection = _second_layer_layout_selection(scope, task_spec, groups, get_cardplan_registry())
+
+    assert selection.layout_ids == (layout_id,)
+    assert selection.business_layout_kinds == kinds
+    assert selection.business_layout_kinds_by_position == ()
+    assert selection.action_template_ids == action_template_ids
 
 
 def test_parser_rejects_deprecated_three_argument_template_call() -> None:

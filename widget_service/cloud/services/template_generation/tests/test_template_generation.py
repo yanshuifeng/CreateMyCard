@@ -250,7 +250,7 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         if path.is_dir()
     }
 
-    assert len(registry.provider_template_ids) == 75
+    assert len(registry.provider_template_ids) == 78
     assert {
         "ActivityOverviewFull@1",
         "AppUsageOverviewFull@1",
@@ -299,8 +299,12 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
     assert all("#Variant" not in source for source in provider_source_texts)
     assert all("IfParam" not in source for source in provider_source_texts)
     assert all("IfMissingParam" not in source for source in provider_source_texts)
-    assert any("IfPresent" in source for source in provider_source_texts)
-    assert any("IfAbsent" in source for source in provider_source_texts)
+    assert all("IfPresent" not in source for source in provider_source_texts)
+    assert all("IfAbsent" not in source for source in provider_source_texts)
+    assert any("#if" in source for source in provider_source_texts)
+    assert any("#else" in source for source in provider_source_texts)
+    assert any("#endif" in source for source in provider_source_texts)
+    assert any("#Expr" in source for source in provider_source_texts)
     assert all(
         definition.variants[0].size == "default"
         for template_id in registry.provider_template_ids
@@ -310,7 +314,16 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
 
 def test_business_template_suffix_drives_size_and_provider_data_tiers():
     registry = get_cardplan_registry()
-    layout_kinds = {"Support", "Compact", "Hero", "Full", "WideHero", "WideFull"}
+    layout_kinds = {
+        "HeroTitle",
+        "HeroContent",
+        "Support",
+        "Compact",
+        "Hero",
+        "Full",
+        "WideHero",
+        "WideFull",
+    }
 
     for template_id in registry.provider_template_ids:
         definition = registry.require_template(template_id)
@@ -445,9 +458,61 @@ def test_weather_location_compile_time_conditional_selects_available_reference(
     assert "{{" not in str(location_text.values[0])
 
 
-def test_compile_time_conditional_requires_parenthesized_ternary() -> None:
-    with pytest.raises(ValueError, match="must wrap each ternary in parentheses"):
-        _parse_component_body('Text(data.city ? data.city : "当前城市", {})')
+def test_compile_time_conditional_requires_explicit_expr() -> None:
+    with pytest.raises(ValueError, match="must use #Expr"):
+        _parse_component_body('Text((data.city ? data.city : "当前城市"), {})')
+
+    root = _parse_component_body(
+        'Text(#Expr(data.city ? data.city : '
+        '(props.location ? props.location : "当前城市")), {})'
+    )
+
+    assert root.values[0].kind == "compile-time-conditional"
+    assert root.values[0].items[2].kind == "compile-time-conditional"
+
+
+@pytest.mark.parametrize(
+    ("source", "message"),
+    [
+        ("#else", "has no matching #if"),
+        ("#if data.city", "missing #endif"),
+        ("#if data.city.value\n#endif", "#if target is invalid"),
+        ("Text(#Expr(data.city), {})", "requires one ternary expression"),
+    ],
+)
+def test_provider_compile_directives_reject_invalid_syntax(
+    source: str,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        _parse_component_body(source)
+
+
+def test_provider_compiler_rejects_legacy_presence_calls() -> None:
+    with pytest.raises(ValueError, match="unsupported Provider Template component"):
+        _parse_component_body('Column({}, IfPresent(data.city, Text(data.city, {})))')
+
+
+def test_provider_structure_directive_selects_compile_time_branch() -> None:
+    root = _parse_component_body(
+        """Column({},
+#if data.city
+  Text(data.city, {}),
+  Text("已定位", {})
+#else
+  Text("当前城市", {})
+#endif
+)"""
+    )
+
+    present = _instantiate_blueprint(root, {}, {"city": "${data.weather.city}"})
+    missing = _instantiate_blueprint(root, {}, {})
+
+    assert present.children[0].values[0] == "${data.weather.city}"
+    assert present.children[1].values[0] == "已定位"
+    assert missing.children[0].values[0] == "当前城市"
+    assert "IfBind" not in repr(present)
+    assert "IfMissingBind" not in repr(missing)
 
 
 def test_layout_template_wide_marker_drives_exclusive_card_size() -> None:
@@ -457,6 +522,7 @@ def test_layout_template_wide_marker_drives_exclusive_card_size() -> None:
         "HeroActionLayout": ("2x2",),
         "FullIconActionLayout": ("2x2",),
         "CompactTwoActionLayout": ("2x2",),
+        "HeroTitleContentActionLayout": ("2x2",),
         "TwoSupportLayout": ("2x2",),
         "WideSingleFocusLayout": ("2x4",),
     }
@@ -512,13 +578,13 @@ def test_business_groups_are_derived_from_provider_templates() -> None:
     assert provider_layout_components == set(registry.ux_layout_components)
     assert len(registry.ux_business_component_provider_ids) == 11
     calendar = registry.require_ux_business_component("CalendarOverview")
-    assert len(calendar.local_template_ids) == 8
+    assert len(calendar.local_template_ids) == 9
     assert "ScheduleOverviewDateFull@1" in calendar.local_template_ids
     assert not any(
         template_id.startswith("DateOverview")
         for template_id in calendar.local_template_ids
     )
-    assert len(registry.ux_layout_component_provider_ids) == 6
+    assert len(registry.ux_layout_component_provider_ids) == 7
     for bundle in registry.provider_bundles.values():
         payload = json.loads(
             (registry.source_root / "providers" / bundle.manifest.provider_id.removeprefix(
@@ -1343,6 +1409,13 @@ def test_template_compiler_keeps_non_fusion_2x2_theme_background():
         ),
         ("fusion-sleep-violet", ("SleepOverviewFull@1",), True),
         ("fusion-sleep-violet", ("ActivityOverviewFull@1",), False),
+        ("fusion-sport-orange", ("CountdownOverviewFull@1",), True),
+        ("fusion-sleep-violet", ("CountdownOverviewFull@1",), False),
+        (
+            "fusion-sport-orange",
+            ("CountdownOverviewFull@1", "ActivityOverviewFull@1"),
+            False,
+        ),
     ],
 )
 def test_fusion_theme_requires_one_matching_business(
@@ -2220,7 +2293,7 @@ def test_device_ring_progress_and_icons_bind_to_distinct_theme_colors() -> None:
                 assert fill_color.kind == "theme"
                 assert fill_color.name == "supportContentColor"
 
-    assert progress_count == 8
+    assert progress_count == 7
     assert ring_icon_count == 7
 
 
@@ -2357,7 +2430,8 @@ def test_calendar_templates_follow_latest_schedule_contract() -> None:
     registry = get_cardplan_registry()
     calendar = registry.require_ux_business_component("CalendarOverview")
 
-    assert len(calendar.local_template_ids) == 8
+    assert len(calendar.local_template_ids) == 9
+    assert "ScheduleOverviewHeroContent@1" in calendar.local_template_ids
     assert "ScheduleOverviewDateFull@1" in calendar.local_template_ids
     assert not any(
         template_id.endswith(("Support@1", "Compact@1"))
@@ -2545,8 +2619,10 @@ async def test_calendar_dnd_action_restores_label_icon_and_scene_header():
         for component in components
         if header_row["id"] in component.get("children", ())
     )
-    assert header_row["styles"]["alignItems"] == "start"
-    assert hero_content["itemMargin"] == 0
+    header_styles = header_row.get("styles")
+    assert isinstance(header_styles, dict)
+    assert header_styles.get("alignItems") == "top"
+    assert hero_content.get("itemMargin") == 2
     action = next(component for component in components if component.get("onClick"))
     assert action["styles"]["backgroundColor"] == "#331F4799"
     focus_icon = next(
@@ -2682,7 +2758,7 @@ async def test_calendar_reminder_hero_keeps_start_and_advance_notice():
         "left": 0,
         "top": 4,
         "right": 0,
-        "bottom": 0,
+        "bottom": 2,
     }
     assert timeline_column["itemMargin"] == 4
     assert timeline_dot["styles"]["borderWidth"] == 1.5
@@ -2715,14 +2791,21 @@ def test_calendar_timezone_full_keeps_reference_geometry():
     timezone_timeline = timezone.children[2]
     timezone_dot_column = timezone_timeline.children[0]
     timezone_dot = timezone_dot_column.children[0]
+    timezone_divider = timezone_dot_column.children[1]
 
     assert timezone_text_options["height"] == 44
     assert timezone_text_options["fontSize"] == 16
     assert timezone_text_options["maxLines"] == 1
-    timeline_padding = timezone_timeline.values[-1].properties["padding"].properties
     dot_padding = timezone_dot_column.values[-1].properties["padding"].properties
-    assert timeline_padding["top"].value == 10
+    timeline_height = timezone_timeline.values[-1].properties.get("height")
+    assert timeline_height is not None
+    assert timeline_height.kind == "expression"
+    height_bindings = tuple(item.name for item in timeline_height.items if item.kind == "binding")
+    assert height_bindings == ("start",)
+    assert "padding" not in _template_node_options(timezone_timeline)
     assert dot_padding["top"].value == 4
+    assert dot_padding["bottom"].value == 2
+    assert _template_node_options(timezone_divider)["layoutWeight"] == 1
     assert _template_node_options(timezone_dot)["borderWidth"] == 1.5
     assert _template_node_options(timezone_dot)["backgroundColor"] == "#00FFFFFF"
     assert definition.primary_data == (
@@ -4050,9 +4133,14 @@ async def test_2x2_battery_pill_action_uses_generic_hero_template():
     layout = components["template_root"]
     assert layout["component"] == "Column"
     assert layout["itemMargin"] == 8
-    assert layout["styles"] == {"width": "matchParent", "height": "matchParent"}
+    assert layout["styles"] == {
+        "width": "matchParent",
+        "height": "matchParent",
+        "justifyContent": "start",
+        "alignItems": "center",
+    }
     hero_slot, action_slot = (components[child_id] for child_id in layout["children"])
-    assert hero_slot["styles"] == {"width": "matchParent", "height": 92}
+    assert hero_slot["styles"] == {"width": "matchParent", "layoutWeight": 1}
     assert action_slot["styles"] == {"width": "matchParent", "height": 36}
     action = components[action_slot["children"][0]]
     assert action["component"] == "Stack"
@@ -4123,7 +4211,7 @@ async def test_2x2_battery_percent_ring_hero_does_not_require_capacity_level():
         component_id="BatteryOverview",
         available_template_ids=("BatteryOverviewPercentRingHero@1",),
         capability_id="GetPhoneBatteryInfo",
-        required_fields=("/batterySOC", "/batterySOCText"),
+        required_fields=("/batterySOC",),
         action_id="event.setPowerSavingMode",
         body=(
             'Template("HeroActionLayout@1",{},'
@@ -4148,7 +4236,7 @@ async def test_2x2_battery_percent_ring_hero_does_not_require_capacity_level():
         "HeroActionLayout@1",
     )
     assert "batterySOC" in output.a2ui
-    assert "batterySOCText" in output.a2ui
+    assert "batterySOCText" not in output.a2ui
     assert "batteryCapacityLevelDesc" not in output.a2ui
     assert "省电模式" in output.a2ui
 
@@ -4159,29 +4247,29 @@ async def test_2x2_battery_charging_progress_hero_uses_status_fields():
         capabilityId="GetPhoneBatteryInfo",
         writeResultTo="/data/phoneBattery",
         candidateOutputFields=[
-            "/batterySOC",
+            "/batterySOCText",
             "/chargingStatusDesc",
             "/healthStatusDesc",
-            "/pluggedTypeDesc",
         ],
     )
     task_spec = _battery_task()
-    task_spec.userQuery = "睡前想把手机充满，看看充上没、电池健康咋样、插的什么充电器。"
-    phone_battery = task_spec.dataModelSchema["data"]["phoneBattery"]
-    del phone_battery["batterySOCText"]
-    del phone_battery["batteryCapacityLevelDesc"]
+    task_spec.userQuery = "睡前想把手机充满，看看剩余电量、充上没和电池健康咋样。"
+    data = task_spec.dataModelSchema.get("data")
+    assert isinstance(data, dict)
+    phone_battery = data.get("phoneBattery")
+    assert isinstance(phone_battery, dict)
+    phone_battery.pop("batterySOC")
+    phone_battery.pop("batteryCapacityLevelDesc")
     phone_battery["healthStatusDesc"] = _provider_field("正常", "string")
-    phone_battery["pluggedTypeDesc"] = _provider_field("未连接充电器", "string")
     model = _FixedTemplateModel(
         theme_id="battery-yellow",
         component_id="BatteryOverview",
         available_template_ids=("BatteryOverviewChargingProgressHero@1",),
         capability_id="GetPhoneBatteryInfo",
         required_fields=(
-            "/batterySOC",
+            "/batterySOCText",
             "/chargingStatusDesc",
             "/healthStatusDesc",
-            "/pluggedTypeDesc",
         ),
         action_id="event.setPowerSavingMode",
         body=(
@@ -4208,7 +4296,8 @@ async def test_2x2_battery_charging_progress_hero_uses_status_fields():
     assert "batterySOC" in output.a2ui
     assert "chargingStatusDesc" in output.a2ui
     assert "healthStatusDesc" in output.a2ui
-    assert "pluggedTypeDesc" in output.a2ui
+    assert "pluggedTypeDesc" not in output.a2ui
+    assert '"component": "Progress"' not in output.a2ui
 
 
 @pytest.mark.asyncio
@@ -4556,8 +4645,28 @@ def test_first_layer_action_candidate_exposes_only_event_identity():
     ]
 
 
+@pytest.mark.parametrize(
+    ("enable_fusion_ball", "expected_theme_id"),
+    [(False, "race-night-violet"), (True, "fusion-sport-orange")],
+)
+def test_countdown_theme_candidates_follow_fusion_gate(
+    enable_fusion_ball: bool,
+    expected_theme_id: str,
+) -> None:
+    registry = get_cardplan_registry(enable_fusion_ball)
+
+    assert registry.first_layer_theme_ids(("CountdownOverview",)) == (expected_theme_id,)
+
+
 @pytest.mark.asyncio
-async def test_generic_countdown_query_uses_countdown_overview_without_workout_semantics():
+@pytest.mark.parametrize(
+    ("enable_fusion_ball", "theme_id"),
+    [(False, "race-night-violet"), (True, "fusion-sport-orange")],
+)
+async def test_generic_countdown_query_uses_countdown_overview_without_workout_semantics(
+    enable_fusion_ball: bool,
+    theme_id: str,
+) -> None:
     task_spec = TaskSpec(
         userQuery="做一张日程倒数卡片，我想看看高考还剩下多少天",
         size="2x2",
@@ -4590,7 +4699,7 @@ async def test_generic_countdown_query_uses_countdown_overview_without_workout_s
         candidateOutputFields=["/countdownDays"],
     )
     model = _FixedTemplateModel(
-        theme_id="race-night-violet",
+        theme_id=theme_id,
         component_id="CountdownOverview",
         available_template_ids=("CountdownOverviewFull@1",),
         capability_id="GetCountdownDays",
@@ -4598,12 +4707,54 @@ async def test_generic_countdown_query_uses_countdown_overview_without_workout_s
         body='Template("SingleFocusLayout@1",{},Template("CountdownOverviewFull@1",{}));',
     )
 
-    output = await generate_template_a2ui(task_spec, card_spec, (binding,), model)
+    output = await generate_template_a2ui(
+        task_spec,
+        card_spec,
+        (binding,),
+        model,
+        enable_fusion_ball=enable_fusion_ball,
+    )
 
     assert output.template_ids == ("CountdownOverviewFull@1", "SingleFocusLayout@1")
     assert "countdownDays" in output.a2ui
     assert "倒计时" in output.a2ui
     assert "运动倒计时" not in output.a2ui
+    messages = [json.loads(line) for line in output.a2ui.splitlines()]
+    update = messages[1].get("updateComponents")
+    assert isinstance(update, dict)
+    components = update.get("components")
+    assert isinstance(components, list)
+    components_by_id: dict[str, dict[str, Any]] = {}
+    for component in components:
+        component_id = component.get("id")
+        assert isinstance(component_id, str)
+        components_by_id[component_id] = component
+    root = components_by_id.get("root")
+    assert isinstance(root, dict)
+    if enable_fusion_ball:
+        assert root.get("component") == "Stack"
+        assert root.get("children") == ["fusionBallBackground", "root_1"]
+    else:
+        assert root.get("component") == "Column"
+        assert "fusionBallBackground" not in components_by_id
+        root_styles = root.get("styles")
+        assert isinstance(root_styles, dict)
+        assert root_styles.get("backgroundColor") == "#FFFFF0E6"
+    expected_ball_colors = {
+        "fusionBallLarge": "#FFB33024",
+        "fusionBallMedium": "#FFFF8833",
+        "fusionBallSmall": "#FFE68073",
+    }
+    for ball_id, expected_color in expected_ball_colors.items():
+        if not enable_fusion_ball:
+            assert ball_id not in components_by_id
+            continue
+        ball = components_by_id.get(ball_id)
+        assert isinstance(ball, dict)
+        assert ball.get("component") == "Divider"
+        ball_styles = ball.get("styles")
+        assert isinstance(ball_styles, dict)
+        assert ball_styles.get("backgroundColor") == expected_color
     reporter = validate_card(
         artifact={
             "genui": output.a2ui,

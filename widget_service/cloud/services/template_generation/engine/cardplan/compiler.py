@@ -420,7 +420,6 @@ def compile_ux_layout_card(
             "UX Layout Actions must consume each selected Action exactly once."
         )
     expanded = _append_missing_required_literals_to_ux_layout(expanded, contract)
-    expanded = _inject_ux_business_title(expanded, business_title, contract)
     expanded = _strip_2x2_composite_headers(expanded, size=task_spec.size)
     expanded = _normalize_weather_condition_icons(expanded, contract)
     content = _lower_ux_layout_root(
@@ -4449,27 +4448,15 @@ def _instantiate_blueprint_children(
         if child.component in _TEMPLATE_CONDITIONS:
             should_render = _template_condition_should_render(child, params, bindings)
             if should_render:
-                selected = child.children[0]
-                if selected.component in _TEMPLATE_CONDITIONS:
-                    instantiated.extend(
-                        _instantiate_blueprint_children(
-                            (selected,),
-                            params,
-                            bindings,
-                            theme_values,
-                            spread_children=spread_children,
-                        )
+                instantiated.extend(
+                    _instantiate_blueprint_children(
+                        child.children,
+                        params,
+                        bindings,
+                        theme_values,
+                        spread_children=spread_children,
                     )
-                else:
-                    instantiated.append(
-                        _instantiate_blueprint(
-                            selected,
-                            params,
-                            bindings,
-                            theme_values,
-                            spread_children=spread_children,
-                        )
-                    )
+                )
             continue
         instantiated.append(
             _instantiate_blueprint(
@@ -6088,6 +6075,20 @@ def _validate_provider_template_layout_action_requirements(
         for child in action_children
         if (action_name := _parsed_ux_action_component(child)) is not None
     )
+    hero_title_content_kinds = ("HeroTitle", "HeroContent")
+    if layout_kinds == hero_title_content_kinds:
+        valid_combination = layout_id == "HeroTitleContentActionLayout"
+        valid_combination = valid_combination and action_names == ("PillAction",)
+        if not valid_combination:
+            raise TerselConversionError(
+                "HeroTitle/HeroContent Provider Templates require ordered "
+                "HeroTitleContentActionLayout children and one PillAction."
+            )
+        return
+    if set(layout_kinds).intersection(hero_title_content_kinds):
+        raise TerselConversionError(
+            "HeroTitle/HeroContent Provider Template order is invalid."
+        )
     if len(layout_kinds) == 2 and set(layout_kinds) == {"Support"} and not action_names:
         if layout_id != "TwoSupportLayout":
             raise TerselConversionError(
@@ -7027,54 +7028,6 @@ def _is_literal_component_header(node: Nested2Node) -> bool:
 
 def _is_plain_literal_text(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip()) and "${" not in value
-
-
-def _inject_ux_business_title(
-    node: Nested2Node,
-    title: str | None,
-    contract: HybridBodyContract,
-) -> Nested2Node:
-    """Project the trusted CardSpec title into the business region when useful."""
-    if contract.required_business_component_ids or _is_advanced_component_region(node):
-        return node
-    if not isinstance(title, str) or not title.strip() or title not in contract.trusted_literals:
-        return node
-    normalized_title = _semantic_text_fragment(title)
-    visible = tuple(
-        descendant.values[0]
-        for descendant in _walk_nodes(node)
-        if descendant.component_type == "Text"
-        and descendant.values
-        and isinstance(descendant.values[0], str)
-    )
-    visible_blob = "".join(_semantic_text_fragment(item) for item in visible)
-    if normalized_title and normalized_title in visible_blob:
-        return node
-    content, actions = _split_ux_layout_children(node)
-    if not content:
-        return node
-    title_font_size = 10 if len(normalized_title) > 8 else 14
-    title_node = Nested2Node(
-        "Text",
-        (
-            title,
-            "compact-title",
-            {
-                "width": "100%",
-                "fontSize": title_font_size,
-                "minFontSize": 9,
-                "maxLines": 1,
-                "textOverflow": "ellipsis",
-            },
-        ),
-        (),
-    )
-    first = content[0]
-    if first.component_type in {"Column", "List"}:
-        first = Nested2Node(first.component_type, first.values, (title_node, *first.children))
-    else:
-        first = Nested2Node("Column", ("compact",), (title_node, first))
-    return Nested2Node(node.component_type, node.values, (first, *content[1:], *actions))
 
 
 def _inject_phone_earphone_title(

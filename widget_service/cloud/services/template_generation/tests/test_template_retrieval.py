@@ -45,6 +45,57 @@ _WEATHER_FIELDS = (
 )
 
 
+@pytest.mark.parametrize(
+    ("enabled", "requested_theme", "expected_theme"),
+    [
+        (False, "family-weather-care-blue", "meeting-paper-neutral"),
+        (False, "meeting-paper-neutral", "meeting-paper-neutral"),
+        (True, "fusion-weather-blue", "fusion-schedule-cool"),
+        (True, "fusion-schedule-cool", "fusion-schedule-cool"),
+        (True, "meeting-paper-neutral", "fusion-schedule-cool"),
+    ],
+)
+def test_hero_content_theme_follows_main_business_and_version_gate(
+    enabled: bool, requested_theme: str, expected_theme: str,
+) -> None:
+    registry = get_cardplan_registry(enabled)
+    template_ids = (
+        "WeatherOverviewHeroTitle@1", "ScheduleOverviewHeroContent@1", "PillAction@1",
+    )
+    assert registry.hero_content_theme_id(template_ids, requested_theme) == expected_theme
+
+
+def test_hero_content_without_fusion_never_borrows_title_business_fusion() -> None:
+    registry = CardPlanRegistry(enable_fusion_ball=True)
+    registry.themes.pop("fusion-schedule-cool")
+    template_ids = ("WeatherOverviewHeroTitle@1", "ScheduleOverviewHeroContent@1")
+    assert registry.hero_content_theme_id(template_ids, "fusion-weather-blue") == (
+        "meeting-paper-neutral"
+    )
+
+
+@pytest.mark.parametrize(
+    "template_ids",
+    [
+        (),
+        ("WeatherOverviewHeroTitle@1",),
+        ("ScheduleOverviewHeroContent@1",),
+        ("WeatherOverviewHero@1", "ScheduleOverviewHeroContent@1"),
+        ("WeatherOverviewHeroTitle@1", "ScheduleOverviewDateFull@1"),
+        (
+            "WeatherOverviewHeroTitle@1", "ScheduleOverviewHeroContent@1",
+            "SleepOverviewFull@1",
+        ),
+    ],
+)
+def test_other_layouts_do_not_acquire_hero_content_theme_ownership(
+    template_ids: tuple[str, ...],
+) -> None:
+    registry = get_cardplan_registry(True)
+    assert registry.hero_content_theme_owner(template_ids) is None
+    assert registry.hero_content_theme_id(template_ids, "fusion-weather-blue") is None
+
+
 def _field(value: Any, data_type: str = "string") -> dict[str, Any]:
     return {"type": data_type, "description": "trusted", "sampleValue": value}
 
@@ -766,8 +817,20 @@ def test_search_rejects_two_data_businesses() -> None:
 
 
 @pytest.mark.parametrize("business_title", [None, "天气和日程", "天气 + 日历日程组合画廊"])
+@pytest.mark.parametrize("weather_state", ["both", "condition", "temperature", "neither", "empty"])
+@pytest.mark.parametrize(
+    ("enable_fusion_ball", "requested_theme", "expected_theme"),
+    [
+        (False, "family-weather-care-blue", "meeting-paper-neutral"),
+        (True, "fusion-weather-blue", "fusion-schedule-cool"),
+    ],
+)
 def test_search_orders_complete_hero_title_and_hero_content_businesses(
     business_title: str | None,
+    enable_fusion_ball: bool,
+    requested_theme: str,
+    expected_theme: str,
+    weather_state: str,
 ) -> None:
     task = _task().model_copy(
         update={
@@ -782,7 +845,24 @@ def test_search_orders_complete_hero_title_and_hero_content_businesses(
             ],
         }
     )
-    task.dataModelSchema["data"]["calendar"] = {
+    data = task.dataModelSchema.get("data")
+    assert isinstance(data, dict)
+    weather = data.get("weather")
+    assert isinstance(weather, dict)
+    current = weather.get("current")
+    assert isinstance(current, dict)
+    weather_fields = ["/location/districtName"]
+    for field_name in ("temperatureText", "condition"):
+        field_is_available = weather_state in {"both", "empty"}
+        field_is_available = field_is_available or weather_state == field_name.removesuffix("Text")
+        if field_is_available:
+            weather_fields.append(f"/current/{field_name}")
+            if weather_state == "empty":
+                current[field_name] = _field("")
+        else:
+            current.pop(field_name)
+    weather_binding = _binding().model_copy(update={"candidateOutputFields": weather_fields})
+    data["calendar"] = {
         "events": [
             {
                 "title": _field("项目例会"),
@@ -803,13 +883,9 @@ def test_search_orders_complete_hero_title_and_hero_content_businesses(
         ],
     )
     query = TemplateRetrievalQuery(
-        themeId="family-weather-care-blue",
+        themeId=requested_theme,
         requiredOutputFieldsByCapability={
-            "ViewWeather": (
-                "/location/districtName",
-                "/current/temperatureText",
-                "/current/condition",
-            ),
+            "ViewWeather": tuple(weather_fields),
             "GetCalendarEvents": (
                 "/events/0/title",
                 "/events/0/dtStart",
@@ -831,12 +907,18 @@ def test_search_orders_complete_hero_title_and_hero_content_businesses(
             },
         ],
     }
-    registry = get_cardplan_registry()
+    registry = get_cardplan_registry(enable_fusion_ball)
+    first_layer_messages = build_template_retrieval_prompt(
+        task, registry, (weather_binding, calendar_binding)
+    )
+    first_layer_text = json.dumps(first_layer_messages, ensure_ascii=False)
+    assert "不要求温度字段必须存在" in first_layer_text
+    assert "温度字段可用且能完整使用" not in first_layer_text
     result = retrieve_template_variants(
         query,
         task,
         registry,
-        (_binding(), calendar_binding),
+        (weather_binding, calendar_binding),
         card_spec,
     )
     projection = build_ux_mixed_prompt(
@@ -888,18 +970,123 @@ def test_search_orders_complete_hero_title_and_hero_content_businesses(
         ("ScheduleOverviewHeroContent@1",),
     )
     assert projection.allowed_layout_ids == ("HeroTitleContentActionLayout",)
+    assert result.scope.theme_id == expected_theme
+    assert projection.theme_id == expected_theme
+    assert projection.contract.theme_profile_id == expected_theme
+    messages = [json.loads(line) for line in compilation.a2ui.splitlines() if line.strip()]
+    components = messages[1].get("updateComponents", {}).get("components")
+    assert isinstance(components, list)
+    by_id = {component.get("id"): component for component in components}
+    root = by_id.get("root")
+    assert isinstance(root, dict)
+    expected_color = "#FFCCEEFF" if enable_fusion_ball else "#FF1F4799"
+    themed_text_count = 0
+    for component in components:
+        content = component.get("content")
+        if not isinstance(content, str):
+            continue
+        primary_paths = (
+            "/data/weather/location/districtName", "/data/weather/current/temperatureText",
+            "/data/weather/current/condition", "/data/calendar/events/0/title",
+        )
+        is_primary_text = any(path in content for path in primary_paths)
+        if content == action.display_label or is_primary_text:
+            assert component.get("styles", {}).get("fontColor") == expected_color
+            themed_text_count += 1
+    assert themed_text_count == (3 if weather_state == "neither" else 4)
+    assert "全局主题已按主业务 HeroContent 确定" in projection.messages[1]["content"]
+    assert "不得因缺少温度拒绝该模板" in projection.messages[1]["content"]
+    city_nodes = [
+        component for component in components
+        if "/data/weather/location/districtName" in str(component.get("content", ""))
+    ]
+    assert len(city_nodes) == 1
+    city_id = city_nodes[0].get("id")
+    headers = [component for component in components if city_id in component.get("children", [])]
+    assert len(headers) == 1
+    header = headers[0]
+    assert header.get("component") == "Row"
+    header_children = header.get("children")
+    assert isinstance(header_children, list)
+    assert header_children[0] == city_id
+    assert len(header_children) == (1 if weather_state == "neither" else 2)
+    if weather_state != "neither":
+        details = by_id.get(header_children[1])
+        assert isinstance(details, dict)
+        assert details.get("component") == "Text"
+        details_content = details.get("content")
+        assert isinstance(details_content, str)
+        if weather_state in {"both", "empty"}:
+            assert details_content.index("/condition") < details_content.index("/temperatureText")
+            assert " | " in details_content
+        else:
+            assert "|" not in details_content
+    if enable_fusion_ball:
+        assert root.get("children") == ["fusionBallBackground", "template_root"]
+        background_count = sum(
+            component.get("id") == "fusionBallBackground" for component in components
+        )
+        assert background_count == 1
+        palette = {
+            "fusionBallLarge": "#FF121E59",
+            "fusionBallMedium": "#FF2BA2D9",
+            "fusionBallSmall": "#FF52CCCC",
+        }
+        for component_id, color in palette.items():
+            component = by_id.get(component_id)
+            assert isinstance(component, dict)
+            assert component.get("styles", {}).get("backgroundColor") == color
+    else:
+        assert root.get("styles", {}).get("backgroundColor") == "#FFE5EDFE"
+        assert "fusionBallBackground" not in by_id
     child_order = (
         '"childOrder": "position 0 HeroTitle, position 1 HeroContent, position 2 PillAction"'
     )
     assert child_order in projection.messages[1]["content"]
     assert "HeroTitleContentActionLayout" not in compilation.a2ui
     assert "events/0/title" in compilation.a2ui
-    assert "current/temperatureText" in compilation.a2ui
+    for field_name in ("temperatureText", "condition"):
+        assert (f"/data/weather/current/{field_name}" in compilation.a2ui) == (
+            f"/current/{field_name}" in weather_fields
+        )
+    assert "_advancedComponent" not in compilation.a2ui
     if business_title is not None:
         assert business_title in projection.contract.trusted_literals
         assert business_title not in compilation.a2ui
         assert card_spec.get("title") == business_title
     assert compilation.stats.action_used_ids == (action.action_id,)
+
+
+@pytest.mark.parametrize("action_count", (0, 1, 2))
+@pytest.mark.parametrize("weather_field", ("/current/condition", "/location/districtName"))
+def test_optional_weather_title_does_not_relax_single_business_templates(
+    action_count: int, weather_field: str,
+) -> None:
+    events = [
+        EventAction(
+            id=f"event.open.{index}", description="查看详情", call="clickToDeeplink",
+            args={"uri": "example://details"},
+        )
+        for index in range(action_count)
+    ]
+    task = TaskSpec(
+        userQuery="显示城市或天气现象", size="2x2", eventCandidates=events,
+        dataModelSchema={
+            "data": {
+                "weather": {
+                    "location": {"districtName": _field("青浦区")},
+                    "current": {"condition": _field("多云")},
+                }
+            }
+        },
+    )
+    query = _query(weather_field).model_copy(
+        update={"action_ids": tuple(event.id for event in events)}
+    )
+    with pytest.raises(TemplateRetrievalMiss):
+        retrieve_template_variants(
+            query, task, get_cardplan_registry(), (_binding(),), _card_spec()
+        )
 
 
 def test_search_rejects_two_businesses_backed_by_one_capability() -> None:

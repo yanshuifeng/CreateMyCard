@@ -203,7 +203,7 @@ def test_gallery_inputs_cover_all_provider_business_scenarios(tmp_path: Path) ->
     all_cases = []
     for provider in manifest.providers:
         all_cases.extend(provider.cases)
-    assert len(all_cases) == 135
+    assert len(all_cases) == 138
     assert {case.appearanceId for case in all_cases} == {"fusion"}
     assert {case.prdVer for case in all_cases} == {FUSION_PRD_VERSION}
     for case in all_cases:
@@ -292,7 +292,7 @@ def test_gallery_inputs_cover_all_provider_business_scenarios(tmp_path: Path) ->
         for case in provider.cases:
             if case.targetTemplateId:
                 targeted_cases.append(case)
-    assert len(targeted_cases) == 132
+    assert len(targeted_cases) == 136
     battery_full_ids = {
         case.targetTemplateId
         for case in targeted_cases
@@ -400,7 +400,8 @@ def test_gallery_inputs_mark_missing_layout_families(tmp_path: Path) -> None:
         "CountdownOverview",
         "single-two-actions",
     )
-    assert countdown_compact.missingReason == "缺失 Compact 模板"
+    assert countdown_compact.targetTemplateId == "CountdownOverviewTargetCompact@1"
+    assert countdown_compact.missingReason == ""
     calendar_hero_ids = set()
     for provider in manifest.providers:
         for case in provider.cases:
@@ -460,23 +461,34 @@ async def test_gallery_runner_calls_public_service_and_groups_a2ui_by_provider(
     )
 
     assert not stale_output.exists()
-    assert summary.total == 3
-    assert summary.success == 2
+    assert summary.total == 6
+    assert summary.success == 6
     assert summary.failed == 0
-    assert summary.missing == 1
-    assert len(service.requests) == 2
-    assert service.prd_versions.count(FUSION_PRD_VERSION) == 2
+    assert summary.missing == 0
+    assert len(service.requests) == 6
+    assert service.prd_versions.count(FUSION_PRD_VERSION) == 6
     assert all(service.template_candidate_ids)
     assert all(isinstance(item, dict) for item in service.template_sample_overrides)
-    assert sorted(len(item) for item in service.template_action_ids) == [0, 1]
-    assert sorted(len(request.candidateEventCandidates or []) for request in service.requests) == [
+    assert sorted(len(item) for item in service.template_action_ids) == [
+        0,
         0,
         1,
+        1,
+        1,
+        2,
+    ]
+    assert sorted(len(request.candidateEventCandidates or []) for request in service.requests) == [
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
     ]
     output_manifest = json.loads(summary.manifest_path.read_text(encoding="utf-8"))
     assert len(output_manifest["providers"]) == 1
     cases = output_manifest["providers"][0]["cases"]
-    assert {case["status"] for case in cases} == {"missing", "success"}
+    assert {case["status"] for case in cases} == {"success"}
     assert {case["appearanceId"] for case in cases} == {"fusion"}
     for case in cases:
         if case["status"] != "success":
@@ -542,10 +554,10 @@ async def test_gallery_dry_run_emits_missing_and_not_generated_results(
 
     summary = await runner.run(input_root, output_root, dry_run=True)
 
-    assert summary.total == 135
+    assert summary.total == 138
     assert summary.failed == 0
-    assert summary.missing == 14
-    assert summary.not_generated == 121
+    assert summary.missing == 13
+    assert summary.not_generated == 125
     assert service.requests == []
     reloaded = load_gallery_input_manifest(input_root)
     assert len(reloaded.providers) == 10

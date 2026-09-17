@@ -33,7 +33,7 @@ Stack({
 )
 #End
 
-#Template CompactAction@1(props: { actionId: string, label: string, icon: asset, subtitle?: string, prominent?: boolean })
+#Template CompactAction@1(props: { actionId: string, label: string, icon?: asset, subtitle?: string, prominent?: boolean })
 data = {
 }
 
@@ -83,6 +83,7 @@ Stack({
         })
       #endif
     ),
+    #if props.icon
     Image(props.icon, {
       "width": 24,
       "height": 24,
@@ -90,6 +91,7 @@ Stack({
       "flexShrink": 0,
       "fillColor": $theme("supportContentColor")
     })
+    #endif
   )
 #else
   Row({
@@ -129,6 +131,7 @@ Stack({
         })
       #endif
     ),
+    #if props.icon
     Image(props.icon, {
       "width": 24,
       "height": 24,
@@ -136,8 +139,67 @@ Stack({
       "flexShrink": 0,
       "fillColor": $theme("supportContentColor")
     })
+    #endif
   )
 #endif
+)
+#End
+
+#Template CompactSubtitleAction@1(props: { actionId: string, label: string, subtitle: string, icon: asset })
+data = {
+}
+
+Stack({
+  "width": "matchParent",
+  "height": "matchParent",
+  "borderRadius": $theme('supportContentStyle.borderRadius'),
+  "backgroundColor": $theme('supportContentStyle.backgroundColor'),
+  "alignContent": "center",
+  "onClick": EventAction(props.actionId),
+  "_preserveOriginalColor": true
+},
+  Row({
+    "width": "matchParent",
+    "height": "matchParent",
+    "padding": {"left": 12, "top": 0, "right": 16, "bottom": 0},
+    "justifyContent": "spaceBetween",
+    "alignItems": "center"
+  },
+    Column({
+      "layoutWeight": 1,
+      "itemMargin": 2,
+      "justifyContent": "center",
+      "alignItems": "start",
+      "constraintSize": {"minWidth": 0, "minHeight": 0}
+    },
+      Text(props.label, {
+        "fontSize": 14,
+        "fontWeight": 700,
+        "fontColor": $theme('primaryColor'),
+        "maxLines": 1,
+        "textOverflow": "ellipsis",
+        "textAlign": "start",
+        "constraintSize": {"minWidth": 0, "minHeight": 0}
+      }),
+      Text(props.subtitle, {
+        "fontSize": 10,
+        "fontWeight": 400,
+        "fontColor": $theme('supportContentColor'),
+        "maxLines": 1,
+        "textOverflow": "ellipsis",
+        "textAlign": "start",
+        "constraintSize": {"minWidth": 0, "minHeight": 0}
+      })
+    ),
+    #if props.icon
+    Image(props.icon, {
+      "width": 24,
+      "height": 24,
+      "objectFit": "contain",
+      "flexShrink": 0
+    })
+    #endif
+  )
 )
 #End
 

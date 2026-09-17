@@ -283,7 +283,7 @@ def test_all_provider_templates_are_loaded_from_the_isolated_directory():
         if path.is_dir()
     }
 
-    assert len(registry.provider_template_ids) == 175
+    assert len(registry.provider_template_ids) == 191
     assert {
         "ActivityOverviewFull@1",
         "AppUsageOverviewFull@1",
@@ -1052,7 +1052,7 @@ def test_business_groups_are_derived_from_provider_templates() -> None:
     assert provider_layout_components == set(registry.ux_layout_components)
     assert len(registry.ux_business_component_provider_ids) == 12
     calendar = registry.require_ux_business_component("CalendarOverview")
-    assert len(calendar.local_template_ids) == 26
+    assert len(calendar.local_template_ids) == 27
     assert "ScheduleOverviewDateFull@1" in calendar.local_template_ids
     assert not any(
         template_id.startswith("DateOverview")
@@ -1723,7 +1723,7 @@ def test_fusion_ball_child_percentages_resolve_against_the_direct_slot(
     assert 160 * slot_height_ratio * ball_height_ratio == pytest.approx(diameter)
 
 
-def test_fusion_ball_wraps_only_2x2_with_expanded_tersel_background():
+def test_fusion_ball_wraps_2x2_and_2x4_with_expanded_tersel_background():
     card = Nested2Node(
         "Column",
         (
@@ -1822,11 +1822,18 @@ def test_fusion_ball_wraps_only_2x2_with_expanded_tersel_background():
     assert action_icon.values[-1]["fillColor"] == "#FF64BB5C"
     assert action_text.values[-1]["fontColor"] == "#FF64BB5C"
 
-    assert apply_fusion_ball_background(
+    # 2x4 融球按同一确定性展开包装根节点（画布 300x150，球体几何等比缩放）。
+    wrapped_wide = apply_fusion_ball_background(
         card,
         size="2x4",
         palette=palette,
-    ) is card
+    )
+    assert wrapped_wide.component_type == "Stack"
+    assert wrapped_wide.values[0] == "card"
+    assert wrapped_wide.children[0].component_type == "Stack"
+    assert wrapped_wide.children[0].values[-1]["_id"] == "fusionBallBackground"
+    assert wrapped_wide.children[1].component_type == "Stack"
+    assert wrapped_wide.children[1].values[-1]["_id"] == "template_root"
     assert apply_fusion_ball_background(
         card,
         size="2x2",
@@ -2949,8 +2956,8 @@ def test_device_ring_progress_and_icons_bind_to_distinct_theme_colors() -> None:
                 assert fill_color.kind == "theme"
                 assert fill_color.name == "supportContentColor"
 
-    assert progress_count == 13
-    assert ring_icon_count == 12
+    assert progress_count == 19
+    assert ring_icon_count == 18
 
 
 def test_battery_ring_progress_uses_dedicated_track_theme_color() -> None:
@@ -2966,6 +2973,7 @@ def test_battery_ring_progress_uses_dedicated_track_theme_color() -> None:
         "BatteryOverviewChargingProgressFull@1",
         "BatteryOverviewPercentRingHero@1",
         "BatteryOverviewChargingRingHero@1",
+        "BatteryOverviewTemperatureRingHero@1",
     }
 
     for definition in bundle.templates:
@@ -3088,7 +3096,7 @@ def test_calendar_templates_follow_latest_schedule_contract() -> None:
     registry = get_cardplan_registry()
     calendar = registry.require_ux_business_component("CalendarOverview")
 
-    assert len(calendar.local_template_ids) == 26
+    assert len(calendar.local_template_ids) == 27
     assert "ScheduleOverviewHeroContent@1" in calendar.local_template_ids
     assert "ScheduleOverviewDateFull@1" in calendar.local_template_ids
     assert "ScheduleOverviewTimeSupport@1" in calendar.local_template_ids
@@ -3183,10 +3191,17 @@ def test_battery_templates_follow_consolidated_state_contract() -> None:
         "BatteryOverviewPercentRingHero@1",
         "BatteryOverviewTemperatureFull@1",
         "BatteryOverviewSupport@1",
+        "BatteryOverviewSupportHero@1",
         "BatteryOverviewStatusSupport@1",
         "BatteryOverviewStatusHero@1",
         "BatteryOverviewChargeStatusHero@1",
         "BatteryOverviewPhoneTextCompact@1",
+        "BatteryOverviewStatusWideFull@1",
+        "BatteryOverviewTemperatureHero@1",
+        "BatteryOverviewTemperatureRingHero@1",
+        "BatteryOverviewPercentRingCompact@1",
+        "BatteryOverviewPercentStatusCompact@1",
+        "BatteryOverviewStatusRingHero@1",
     }
 
     assert set(battery.local_template_ids) == expected_template_ids
@@ -3194,6 +3209,24 @@ def test_battery_templates_follow_consolidated_state_contract() -> None:
     assert compact.primary_data == ("/batterySOC",)
     assert compact.secondary_data == ("/chargingStatusDesc",)
     assert compact.optional_data == ()
+
+    charge_status_hero = registry.require_template("BatteryOverviewChargeStatusHero@1")
+    assert charge_status_hero.primary_data == ("/batterySOC",)
+    assert charge_status_hero.secondary_data == ()
+    assert charge_status_hero.optional_data == (
+        "/chargingStatusDesc",
+        "/pluggedTypeDesc",
+        "/batteryTemperatureText",
+    )
+
+    support_hero = registry.require_template("BatteryOverviewSupportHero@1")
+    assert support_hero.primary_data == ("/batterySOC",)
+    assert support_hero.secondary_data == ()
+    assert support_hero.optional_data == (
+        "/chargingStatusDesc",
+        "/batterySOCText",
+        "/batteryTemperatureText",
+    )
 
 
 def test_each_business_group_has_a_canonical_support_template() -> None:
@@ -5625,7 +5658,9 @@ async def test_2x2_battery_percent_ring_hero_does_not_require_capacity_level():
         "HeroActionLayout@1",
     )
     assert "batterySOC" in output.a2ui
-    assert "batterySOCText" not in output.a2ui
+    # 候选模板（如 BatteryOverviewSupportHero@1）的可选数据会进入 updateDataModel
+    # 运行时投影，但组件绑定不得引用 batterySOCText。
+    assert "batterySOCText" not in output.a2ui.split("updateDataModel")[0]
     assert "batteryCapacityLevelDesc" not in output.a2ui
     assert "省电模式" in output.a2ui
 
@@ -7024,7 +7059,11 @@ async def test_weather_template_defaults_to_non_fusion_a2ui_and_compact_artifact
     candidate_line = next(
         line for line in second_layer_user.splitlines() if line.startswith("componentCandidates=")
     )
-    weather_full_candidates = ["WeatherOverviewFull@1"]
+    weather_full_candidates = [
+        "WeatherOverviewConditionFeelsLikeAlertFull@1",
+        "WeatherOverviewFull@1",
+        "WeatherOverviewAlertInfoFull@1",
+    ]
     assert json.loads(candidate_line.removeprefix("componentCandidates=")) == [
         {
             "componentId": "WeatherOverview",
@@ -7048,11 +7087,15 @@ async def test_weather_template_defaults_to_non_fusion_a2ui_and_compact_artifact
     template_contracts = json.loads(
         template_contract_line.removeprefix("templateContracts=")
     )
-    assert template_contracts[0]["templateId"] == "WeatherOverviewFull@1"
-    assert template_contracts[0]["callSyntax"] == (
+    full_contract = next(
+        item
+        for item in template_contracts
+        if item["templateId"] == "WeatherOverviewFull@1"
+    )
+    assert full_contract["callSyntax"] == (
         'Template("WeatherOverviewFull@1", <props matching propsSchema>)'
     )
-    assert template_contracts[0]["propsSchema"] == {
+    assert full_contract["propsSchema"] == {
         "type": "object",
         "properties": {
             "location": {"type": "string"},
@@ -7061,7 +7104,7 @@ async def test_weather_template_defaults_to_non_fusion_a2ui_and_compact_artifact
         "required": [],
         "additionalProperties": False,
     }
-    assert template_contracts[0]["parameterSources"]["conditionIcon"] == {
+    assert full_contract["parameterSources"]["conditionIcon"] == {
         "valueKind": "asset-source",
         "allowedSources": ["resources/base/media/drop_1.svg"],
     }
@@ -7071,7 +7114,7 @@ async def test_weather_template_defaults_to_non_fusion_a2ui_and_compact_artifact
     assert "手机电量高级组件二层规则" not in second_layer_user
     assert "- 可用模板：" not in second_layer_user
     assert "WeatherOverviewCompact@1" not in second_layer_user
-    assert sum(len(item["content"]) for item in model.second_layer_prompt) < 8_000
+    assert sum(len(item["content"]) for item in model.second_layer_prompt) < 10_000
     assert "标准组件投影" not in model.second_layer_prompt[0]["content"]
     assert captured["compact"]
     assert "{{ ${/data/weather/current/condition}" in captured["compact"]

@@ -109,7 +109,8 @@ def plan_template_candidates(
                 registry,
             )
             if plan is not None:
-                score = _wide_plan_score(plan, intent, registry)
+                # 同分时按 _WIDE_LAYOUTS 位次决胜，业务覆盖组合的枚举顺序只作最后兜底。
+                score = (*_wide_plan_score(plan, intent, registry), -composition.layout_rank)
                 drafts.append(_PlanDraft(plan=plan, score=score, sequence=sequence))
                 sequence += 1
         group_options = ()

@@ -42,6 +42,9 @@
     `timeIcon` 与 `locationIcon` 可选。
   - `ScheduleOverviewTwoEventsFull@1`：双日程 Full；按顺序展示前两项日程各自的标题和开始时间，
     不接收展示 Prop。
+  - `ScheduleOverviewThreeMeetingsFull@1`：三场会议 Full；无背板，按顺序展示前三项日程各自的
+    开始时间、标题和地点，每场会议以时间轴圆点开始；不接收展示 Prop，用于 2x4 组合布局的整列
+    业务槽位（如 `WideFullTwoCompactLayout@1` 的 Full 槽位），不内嵌 Action。
   - `ScheduleOverviewLocationDescriptionEndFull@1`：备注详情 Full；展示首项日程的备注、结束时间和地点；
     可选 `calendarIcon` 与 `headerLabel`。
   - `ScheduleOverviewDatedAllDayHero@1`：带日期全天日程 Hero；展示日期、标题和全天状态，

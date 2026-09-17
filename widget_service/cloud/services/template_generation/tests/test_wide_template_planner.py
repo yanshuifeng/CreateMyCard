@@ -136,6 +136,7 @@ def _body(plan, actions, *, tamper=None):
 
 
 def _contract(plans, task):
+    bindings = action_bindings(task)
     return HybridBodyContract(
         theme_profile_id=plans[0].theme_id,
         allowed_design_tokens=(),
@@ -147,7 +148,9 @@ def _contract(plans, task):
         protected_literals=(),
         allowed_template_ids=(),
         allowed_components=(),
-        action_bindings=action_bindings(task),
+        action_bindings=bindings,
+        # 与真实投影一致：原子计划选中的动作都属于内容动作。
+        content_action_ids=tuple(action.action_id for action in bindings),
         allowed_template_plans=plans,
         limits=HybridLimits(
             max_raw_components=80,
@@ -486,3 +489,107 @@ async def test_wide_full_embedded_action_uses_the_common_planner():
     output = await generate_template_a2ui(task, card, bindings, model)
     assert model.calls == 1
     assert output.a2ui.count('"call":"clickToDeeplink"') == 1
+
+
+def _weather_earphone_case():
+    task = TaskSpec(
+        userQuery="看当天风力和下雨概率、耳机连接和耳机仓电量，骑车时可以打开收藏歌单",
+        size="2x4",
+        dataModelSchema={
+            "data": {
+                "weather": {
+                    "current": {"windLevel": _field(4, "integer")},
+                    "daily": [{"rainProbabilityPercent": _field("60%")}],
+                },
+                "earphone": {
+                    "isConnected": _field(True, "boolean"),
+                    "batteryLevel": _field(60, "integer"),
+                },
+            }
+        },
+        eventCandidates=[
+            EventAction(
+                id="event.open.music.favorite",
+                call="clickToDeeplink",
+                args={"uri": "music:favorite"},
+            ),
+        ],
+        assetCandidates=[
+            {"src": "resources/base/media/heart_fill.svg", "description": "歌单图标"},
+            {
+                "src": "resources/base/media/earphone_case.svg",
+                "description": "耳机充电盒",
+                "sceneTags": ["earphone-case"],
+            },
+        ],
+    )
+    bindings = (
+        CandidateDataBinding(
+            capabilityId="ViewWeather",
+            writeResultTo="/data/weather",
+            candidateOutputFields=["/current/windLevel", "/daily/0/rainProbabilityPercent"],
+        ),
+        CandidateDataBinding(
+            capabilityId="GetEarphoneInfo",
+            writeResultTo="/data/earphone",
+            candidateOutputFields=["/isConnected", "/batteryLevel"],
+        ),
+    )
+    card = {
+        "title": "骑行听歌",
+        "suggestSize": "2x4",
+        "dataBindings": [
+            {"capabilityId": "ViewWeather", "writeResultTo": "/data/weather"},
+            {"capabilityId": "GetEarphoneInfo", "writeResultTo": "/data/earphone"},
+        ],
+    }
+    intent = TemplateSearchIntent(
+        requiredOutputFieldsByCapability={
+            "ViewWeather": ("/current/windLevel", "/daily/0/rainProbabilityPercent"),
+            "GetEarphoneInfo": ("/isConnected", "/batteryLevel"),
+        },
+        action=("event.open.music.favorite",),
+    )
+    return task, bindings, card, intent
+
+
+def test_case_connection_compact_forms_the_reviewed_wide_plan():
+    task, bindings, card, intent = _weather_earphone_case()
+    registry = get_cardplan_registry()
+    found = search_template_variants(intent, task, registry, bindings, card)
+    earphone_candidates = {
+        candidate.template_id
+        for group in found.business_candidates
+        if group.capability_id == "GetEarphoneInfo"
+        for candidate in group.candidates
+    }
+    assert "BluetoothDeviceOverviewCaseConnectionCompact@1" in earphone_candidates
+    plans = plan_template_candidates(intent, found, task, registry)
+    first = plans[0]
+    assert first.layout_template_id == "WideFullTwoCompactLayout@1"
+    # Q083 评审组合：左侧降水概率 Full，右侧连接 Compact 加歌单入口 Compact，
+    # 音乐动作内嵌进歌单入口 Compact 的根节点底板。
+    assert [slot.template_id for slot in first.business_slots] == [
+        "WeatherOverviewRainWindFull@1",
+        "BluetoothDeviceOverviewCaseConnectionCompact@1",
+        "BluetoothDeviceOverviewMusicCompact@1",
+    ]
+    assignment = first.action_assignments[0]
+    assert assignment.action_id == "event.open.music.favorite"
+    assert assignment.consumer == "business-template"
+    assert assignment.business_position == 2
+    assert any(plan.layout_template_id == "WideFullHeroActionLayout@1" for plan in plans)
+    body = _body(first, action_bindings(task))
+    assert _validate_allowed_template_plan(
+        parse_ux_layout_card(body), _contract(plans, task), registry, card_size="2x4"
+    )
+
+
+@pytest.mark.asyncio
+async def test_right_two_slot_plan_compiles_end_to_end():
+    task, bindings, card, intent = _weather_earphone_case()
+    model = _PlanModel(intent, actions=action_bindings(task))
+    output = await generate_template_a2ui(task, card, bindings, model)
+    assert model.calls == 1
+    assert output.a2ui.count('"call":"clickToDeeplink"') == 1
+    assert "已连接" in output.a2ui

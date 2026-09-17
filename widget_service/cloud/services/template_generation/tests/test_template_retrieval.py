@@ -1226,6 +1226,14 @@ def test_optional_weather_title_does_not_relax_single_business_templates(
         )
         assert "WeatherOverviewConditionHero@1" in result.allowed_template_ids
         assert "WeatherOverviewHeroTitle@1" not in result.allowed_template_ids
+    elif action_count == 0:
+        # 条件+体感+预警 Full 以天气现象为必选字段，可独立覆盖此类查询；
+        # 可选标题模板仍不得借此进入单业务方案。
+        result = retrieve_template_variants(
+            query, task, get_cardplan_registry(), (_binding(),), _card_spec()
+        )
+        assert "WeatherOverviewConditionFeelsLikeAlertFull@1" in result.allowed_template_ids
+        assert "WeatherOverviewHeroTitle@1" not in result.allowed_template_ids
     else:
         with pytest.raises(TemplateRetrievalMiss):
             retrieve_template_variants(
@@ -1365,6 +1373,7 @@ def test_q001_weather_condition_fields_match_condition_hero() -> None:
     )
 
     assert result.component_candidates[0].available_template_ids == (
+        "WeatherOverviewConditionFeelsLikeAlertFull@1",
         "WeatherOverviewConditionHero@1",
     )
 
@@ -1891,6 +1900,7 @@ def test_search_without_action_keeps_only_full_candidates() -> None:
     # condition-only query matches both.
     assert template_ids == {
         "WeatherOverviewFull@1", "WeatherOverviewAlertInfoFull@1",
+        "WeatherOverviewConditionFeelsLikeAlertFull@1",
     }
 
 

@@ -44,6 +44,7 @@ _PLAIN_LAYOUTS = ("card", "section", "compact", "between", "actions", "list", "d
 _ACTION_TEMPLATE_IDS = (
     "PillAction@1",
     "CompactAction@1",
+    "CompactSubtitleAction@1",
     "PlaylistCompactAction@1",
     "IconAction@1",
     "LargeIconAction@1",
@@ -72,6 +73,7 @@ _ACTION_LABELS = {
 _ACTION_SUBTITLES = {
     "event.viewCalendarEvent": "日程详情",
     "event.open.clock.alarm": "闹钟应用",
+    "event.startNavigate": "导航回家",
 }
 _ASSET_SEMANTIC_TERMS = {
     "calendar": ("calendar", "schedule", "日程", "日历"),
@@ -204,7 +206,11 @@ def build_hybrid_prompt(
             *binding_argument_literals,
             *(str(fact.value) for fact in facts if isinstance(fact.value, str)),
             *(_action_label(event) for event in task_spec.eventCandidates),
-            *(_action_subtitle(event) for event in task_spec.eventCandidates),
+            *(
+                subtitle
+                for subtitle in (_action_subtitle(event) for event in task_spec.eventCandidates)
+                if subtitle
+            ),
         ]
     )
     trusted_numbers = tuple(
@@ -734,11 +740,14 @@ def _composition_rules(ux_layout_root: bool) -> tuple[str, ...]:
 
 
 def _ux_layout_action_rule(contract: HybridBodyContract) -> str:
-    actions = [
-        {"actionId": item.action_id, "label": item.display_label}
-        for item in contract.action_bindings
-        if item.action_id in contract.content_action_ids
-    ]
+    actions = []
+    for item in contract.action_bindings:
+        if item.action_id not in contract.content_action_ids:
+            continue
+        candidate = {"actionId": item.action_id, "label": item.display_label}
+        if item.display_subtitle:
+            candidate["subtitle"] = item.display_subtitle
+        actions.append(candidate)
     if not actions:
         return "本次没有批准 Action；必须选择 actionPolicy=none/optional 的布局并省略 Action。"
     action_rule = (
@@ -748,6 +757,9 @@ def _ux_layout_action_rule(contract: HybridBodyContract) -> str:
         "PillAction@1 的 actionId/label 必须来自同一候选，icon 可从 "
         "actionIconCandidates 选择；IconAction@1 和 LargeIconAction@1 "
         "必须填写批准的 actionId/icon。"
+        "CompactAction@1 省略 icon，不传图标素材，按钮只展示 label 文字。"
+        "CompactSubtitleAction@1 必须提供 subtitle 副标题，"
+        "且 subtitle 必须逐字来自候选的 subtitle 值，禁止改写或虚构。"
     )
     two_support_allowed = "TwoSupportLayout" in contract.allowed_layout_component_ids
     if two_support_allowed:
@@ -1115,9 +1127,11 @@ def _provider_variant_matches_trusted_state(
             "full",
             "hero",
             "healthLevelHero",
+            "percentRingCompact",
             "percentRingHero",
             "progressCompact",
             "statusIconCompact",
+            "supportHero",
             "temperatureIconCompact",
             "temperatureFull",
             "wideFull",
@@ -1133,9 +1147,15 @@ def _provider_variant_matches_trusted_state(
             return variant_name == f"{facts.state}Phone"
         return True
     if wire_id == "BluetoothDeviceOverview@1":
+        if variant_name == "musicCompact":
+            # 纯歌单入口：无数据前提，也不要求耳机事实存在。
+            return True
         facts = extract_bluetooth_device_overview_facts(task_spec.dataModelSchema)
         if facts is None:
             return False
+        if variant_name == "caseConnectionCompact":
+            # 仓连接 Compact：只依赖连接状态与耳机仓电量两个事实。
+            return facts.is_connected is not None and facts.case_battery_level is not None
         if variant_name in {
             "caseStatus",
             "caseStatusCompact",
@@ -1274,7 +1294,21 @@ def _action_label(event: Any) -> str:
 
 
 def _action_subtitle(event: Any) -> str:
-    return _ACTION_SUBTITLES.get(getattr(event, "id", "") or "", "")
+    """返回事件批准的双行动作副标题；无批准文案时返回空串。"""
+    event_id = getattr(event, "id", "") or ""
+    if event_id == "event.startNavigate":
+        args = getattr(event, "args", None)
+        params = args.get("params") if isinstance(args, dict) else None
+        destination = params.get("dstLocation") if isinstance(params, dict) else None
+        location = (
+            str(destination.get("location", "") or "")
+            if isinstance(destination, dict)
+            else ""
+        )
+        if location == "company":
+            return "前往公司"
+        return "导航回家"
+    return _ACTION_SUBTITLES.get(event_id, "")
 
 
 def _build_action_bindings(task_spec: TaskSpec) -> tuple[ActionBinding, ...]:

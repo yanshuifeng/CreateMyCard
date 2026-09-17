@@ -329,6 +329,23 @@
       "secondaryData": []
     },
     {
+      "templateId": "SleepOverviewScoreFull@1",
+      "businessId": "SleepOverview",
+      "capabilityId": "GetHealthAndSportSummary",
+      "description": "睡眠得分完整摘要，以大号数字展示睡眠得分并配“分”单位，顶部展示睡眠健康状态，底部展示总睡眠时长，可选展示深睡眠时长，可使用睡眠图标。 组件形态：full。",
+      "optionalData": [
+        "/sleepStatus",
+        "/deepSleepDurationText"
+      ],
+      "entry": "templates/sleep-overview.cardtpl",
+      "primaryData": [
+        "/sleepScore"
+      ],
+      "secondaryData": [
+        "/nightSleepDurationText"
+      ]
+    },
+    {
       "templateId": "SleepOverviewNapFull@1",
       "businessId": "SleepOverview",
       "capabilityId": "GetHealthAndSportSummary",

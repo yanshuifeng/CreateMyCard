@@ -122,22 +122,23 @@ def test_action_image_respects_original_and_explicit_color(
     assert final_options.get("fillColor") == expected
 
 
-@pytest.mark.parametrize("conflict", (False, True))
-def test_action_image_inherits_original_color_protection(conflict: bool) -> None:
+@pytest.mark.parametrize(("conflict", "expected"), (
+    (False, "#FFABCDEF"),
+    (True, _EXPLICIT),
+))
+def test_action_image_inherits_original_color_protection(conflict: bool, expected: str) -> None:
+    """动作级 _preserveOriginalColor 保留模板声明的主题颜色；图标仍补动作前景色，
+    已显式声明 fillColor 的图标保持原值不报错。"""
     options = {"fillColor": _EXPLICIT} if conflict else {}
     image = Nested2Node("Image", ("resources/base/media/icon_phone.svg", options), ())
     action_options = {"onClick": [{"call": "open"}], "_preserveOriginalColor": True}
     root = Nested2Node("Action", (), (Nested2Node("Stack", (action_options,), (image,)),))
-    if conflict:
-        with pytest.raises(TerselConversionError, match="_preserveOriginalColor.*fillColor"):
-            _lower_action_template_tree(root, background="#FFFFFFFF", foreground="#FFABCDEF")
-    else:
-        styled = _lower_action_template_tree(
-            root, background="#FFFFFFFF", foreground="#FFABCDEF",
-        )
-        final_options = styled.children[0].values[-1]
-        assert isinstance(final_options, dict)
-        assert "fillColor" not in final_options
+    styled = _lower_action_template_tree(
+        root, background="#FFFFFFFF", foreground="#FFABCDEF",
+    )
+    final_options = styled.children[0].values[-1]
+    assert isinstance(final_options, dict)
+    assert final_options.get("fillColor") == expected
 
 
 @pytest.mark.parametrize(("filename", "tags"), (

@@ -16,21 +16,21 @@ def test_template_preview_dataset_covers_all_business_templates(tmp_path):
     manifest = write_template_preview_dataset(tmp_path)
     cases = manifest["cases"]
 
-    assert manifest["templateCount"] == 143
+    assert manifest["templateCount"] == 161
     assert manifest["countsByLayout"] == {
         "HeroTitle": 1,
         "HeroContent": 1,
         "Support": 20,
-        "Compact": 18,
-        "Hero": 39,
-        "Full": 43,
-        "WideHero": 4,
-        "WideFull": 14,
+        "Compact": 24,
+        "Hero": 45,
+        "Full": 47,
+        "WideHero": 5,
+        "WideFull": 15,
         "WideHalf": 3,
     }
-    assert manifest["countsBySize"] == {"2x2": 122, "2x4": 21}
-    assert len(cases) == 143
-    assert len({case["templateId"] for case in cases}) == 143
+    assert manifest["countsBySize"] == {"2x2": 138, "2x4": 23}
+    assert len(cases) == 161
+    assert len({case["templateId"] for case in cases}) == 161
     assert all((tmp_path / case["file"]).is_file() for case in cases)
 
 
@@ -101,6 +101,7 @@ def test_template_preview_assets_are_bundled_by_genui_evaluation():
         "l_circle_fill.svg",
         "location_north_up_right_fill.svg",
         "moon_z_fill_1.svg",
+        "music_fill.svg",
         "r_circle_fill.svg",
     }
 
@@ -151,6 +152,11 @@ def test_template_preview_manifest_data_tiers_are_disjoint():
                 "/current/feelsLikeC",
                 "/location/prefectureName", "/location/districtName",
             )
+        elif case.template_id == "BluetoothDeviceOverviewMusicCompact@1":
+            # 纯歌单入口：不渲染任何耳机数据，三级数据均为空。
+            assert case.primary_data == ()
+            assert case.secondary_data == ()
+            assert case.optional_data == ()
         elif case.business_id == "GenericMetricOverview":
             assert case.primary_data == ()
             assert case.secondary_data == ()

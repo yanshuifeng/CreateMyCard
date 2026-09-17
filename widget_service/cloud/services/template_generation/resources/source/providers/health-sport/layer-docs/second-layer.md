@@ -38,6 +38,7 @@
   - `SleepOverviewNapHero@1`：作息提醒主视觉，展示小睡累计时长，可选展示入睡-醒来时段，可使用睡眠图标。 组件形态：hero。 布局场景：约 2x1.7；Hero + 1 个 PillAction。主数据：/totalNapDurationText；次要数据：无；可选数据：/fallAsleepTimeText, /wakeupTimeText。
   - `SleepOverviewCompact@1`：睡眠情况紧凑摘要，展示睡眠时长，可使用睡眠图标。 组件形态：compact。 布局场景：约 2x1；单 Compact + 2 个 PillAction。主数据：/nightSleepDurationText；次要数据：无；可选数据：无。
   - `SleepOverviewScoreCompact@1`：睡眠得分紧凑摘要，展示睡眠得分和得分进度环，可使用睡眠图标。 组件形态：compact。 布局场景：约 2x1；单 Compact + 2 个 PillAction。主数据：/sleepScore；次要数据：无；可选数据：无。
+  - `SleepOverviewScoreFull@1`：睡眠得分完整摘要，以大号数字展示睡眠得分并配“分”单位，顶部展示睡眠健康状态，底部展示总睡眠时长，可选展示深睡眠时长，可使用睡眠图标。 组件形态：full。 布局场景：完整 2x2；无 Action 时单独使用。主数据：/sleepScore；次要数据：/nightSleepDurationText；可选数据：/sleepStatus, /deepSleepDurationText。
 - 已有 Provider 全局路径的值必须由模板 `data` 绑定；props 可传无全局路径的受控派生值、排版参数和
   素材。
 - 选择能够完整表达用户显式要求字段且自身 `primaryData` 与 `secondaryData` 全部可用的模板。
@@ -46,6 +47,8 @@
   完整睡眠时段的顺序选择一个补充区域；睡眠时段仅在入睡和醒来时刻同时存在时展示。
 - `SleepOverviewFull@1` 要求时长和状态；得分存在时展示得分，得分缺失且入睡和醒来时刻都存在时
   补充完整睡眠时段。
+- `SleepOverviewScoreFull@1` 以得分为主数值，要求得分和总睡眠时长，用户显式要求得分场景优先于
+  `SleepOverviewFull@1`；睡眠健康状态和深睡眠时长可用时补充展示，缺失时省略对应内容。
 - `SleepOverviewNapFull@1` 与 `SleepOverviewNapHero@1` 表达白天小睡累计时长；入睡-醒来时段仅在
   入睡和醒来时刻同时存在时补充展示。无 Action 时选择 Full 形态，带一个 Action 时选择 Hero 形态。
 - 素材参数描述的是槽位语义，不代表固定素材清单；只在本轮素材候选中匹配，没有合适候选时省略可选参数：

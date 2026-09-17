@@ -26,6 +26,7 @@ supportedEventIds 必须为无重复的事件类型 ID；不能填写带实例�
 | WeatherOverviewTemperaturecoldLevelSupport@1 | event.open.weather |
 | BatteryOverviewSupport@1 | event.open.settings.battery、event.open.settings.batteryHealth、event.setPowerSavingMode |
 | BatteryOverviewStatusSupport@1 | event.open.settings.battery、event.open.settings.batteryHealth、event.setPowerSavingMode |
+| BatteryOverviewStatusWideFull@1 | event.open.settings.battery、event.open.settings.batteryHealth、event.setPowerSavingMode |
 | ScheduleOverviewTimeSupport@1 | event.viewCalendarEvent、event.enter.meeting |
 | ScheduleOverviewLocationSupport@1 | event.viewCalendarEvent、event.enter.meeting |
 | ScheduleOverviewStartTimeSupport@1 | event.viewCalendarEvent、event.enter.meeting |

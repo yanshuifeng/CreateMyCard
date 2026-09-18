@@ -6,7 +6,7 @@
   "supportedCapabilityIds": ["ViewWeather"],
   "paletteSceneIds": ["weather.sunnyCare"],
   "primaryColor": "#FF1F4799",
-  "supportContentColor": "#991F4799",
+  "supportContentColor": "#FF1F4799",
   "progressBackgroundColor": "#330A59F7",
   "rootStyle": {
     "backgroundColor": "#FFE5EDFE",

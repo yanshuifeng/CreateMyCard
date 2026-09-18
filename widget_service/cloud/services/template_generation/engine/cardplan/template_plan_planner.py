@@ -29,7 +29,7 @@ from .template_retrieval import (
     TemplateSearchIntent,
     TemplateSearchResult,
 )
-from .wide_template_planner import wide_plan_compositions
+from .wide_template_planner import wide_layout_specificity, wide_plan_compositions
 
 _MAX_PLANS = 3
 _PILL_ACTION_TEMPLATE_ID = "PillAction@1"
@@ -678,6 +678,7 @@ def _wide_plan_score(
     actual_order = tuple(dict.fromkeys(slot.capability_id for slot in plan.business_slots))
     order_matches = int(actual_order == requested_order)
     return (
+        wide_layout_specificity(plan.layout_template_id),
         embedded_count,
         base[0],
         -generic_count,

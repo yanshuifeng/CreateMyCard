@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import json
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
@@ -10,6 +11,7 @@ from typing import Any
 from app.logger import json_for_log, logger
 from models.generation import CandidateDataBinding, TaskSpec
 from services.card_validation.base import expression_references
+from services.fusion_ball_expander import fusion_ball_enabled
 from services.template_generation.controls import load_template_controls
 from services.template_generation.engine.advanced.content_selectors import (
     apply_content_selectors,
@@ -35,9 +37,14 @@ from services.template_generation.engine.advanced.ux_mixed_prompt import (
     build_ux_mixed_validation_retry_prompt,
 )
 from services.template_generation.engine.cardplan.compiler import compile_ux_layout_card
+from services.template_generation.engine.cardplan.generic_metrics import GENERIC_HEALTH_LABELS
 from services.template_generation.engine.cardplan.models import (
     CARDTPL_SOURCE_FORMATS,
     TemplatePlan,
+)
+from services.template_generation.engine.cardplan.prompt import (
+    _asset_semantic_tags,
+    action_bindings,
 )
 from services.template_generation.engine.cardplan.registry import (
     CardPlanRegistry,
@@ -94,6 +101,7 @@ async def generate_template_a2ui(
     trusted_template_candidate_ids: tuple[str, ...] = (),
     trusted_template_action_ids: tuple[str, ...] = (),
     trusted_template_sample_overrides: dict[str, Any] | None = None,
+    deterministic_plan: bool = False,
 ) -> TemplateEngineOutput:
     """先做 LLM 全量覆盖判断，再用受信模板确定性展开为 A2UI。"""
     logger.info(
@@ -105,7 +113,9 @@ async def generate_template_a2ui(
             task_spec,
             trusted_template_sample_overrides or {},
         )
-        registry = get_cardplan_registry(enable_fusion_ball)
+        registry = get_cardplan_registry(
+            enable_fusion_ball and fusion_ball_enabled(task_spec.appVersion)
+        )
         controls = load_template_controls()
         available_capability_ids = _card_spec_capability_ids(card_spec)
         effective_capability_ids = resolve_available_capability_ids(
@@ -133,7 +143,47 @@ async def generate_template_a2ui(
 
     try:
         template_plans: tuple[TemplatePlan, ...] = ()
-        if controls.first_layer_component_selector == "llm":
+        if deterministic_plan:
+            intent = _deterministic_search_intent(
+                selected_task_spec,
+                coverage_bindings,
+            )
+            intent = restrict_search_intent_to_preferred_templates(
+                intent,
+                registry,
+                trusted_template_candidate_ids,
+            )
+            intent = _restrict_template_intent_actions(
+                intent,
+                trusted_template_action_ids,
+                selected_task_spec,
+            )
+            search_result = search_template_variants(
+                intent,
+                selected_task_spec,
+                registry,
+                coverage_bindings,
+                card_spec,
+                preferred_template_ids=trusted_template_candidate_ids,
+            )
+            template_plans = plan_template_candidates(
+                intent,
+                search_result,
+                selected_task_spec,
+                registry,
+            )
+            selection = TemplateRouteSelection(
+                scope=planner_scope(template_plans),
+                componentCandidates=planner_component_candidates(template_plans),
+                actionIds=intent.action_ids,
+                requiredTemplateGroups=planner_required_template_groups(template_plans),
+            )
+            logger.info(
+                f"{_MODULE} deterministic_template_retrieval matched=True "
+                f"business_candidate_count={len(search_result.business_candidates)} "
+                f"plan_count={len(template_plans)}"
+            )
+        elif controls.first_layer_component_selector == "llm":
             selection = await plan_template_route_with_llm(
                 selected_task_spec,
                 data_shape,
@@ -216,6 +266,7 @@ async def generate_template_a2ui(
             template_plans=template_plans,
             registry=registry,
             model_client=model_client,
+            deterministic_plan=deterministic_plan,
         )
     except TemplateGenerationError:
         raise
@@ -294,6 +345,188 @@ def _task_spec_log_summary(task_spec: TaskSpec) -> dict[str, Any]:
     }
 
 
+def _deterministic_search_intent(
+    task_spec: TaskSpec,
+    coverage_bindings: tuple[CandidateDataBinding, ...],
+) -> TemplateSearchIntent:
+    """Build an exact template search contract from validated request candidates."""
+    fields_by_capability: dict[str, set[str]] = {}
+    for binding in coverage_bindings:
+        fields_by_capability.setdefault(binding.capabilityId, set()).update(
+            binding.candidateOutputFields
+        )
+    return TemplateSearchIntent(
+        requiredOutputFieldsByCapability={
+            capability_id: tuple(sorted(fields))
+            for capability_id, fields in fields_by_capability.items()
+        },
+        action=tuple(event.id for event in task_spec.eventCandidates if event.id),
+    )
+
+
+def _matching_asset_source(
+    task_spec: TaskSpec,
+    required_tags: tuple[str, ...],
+) -> str | None:
+    required = set(required_tags)
+    for asset in task_spec.assetCandidates:
+        source = asset.get("src") if isinstance(asset, dict) else None
+        if not isinstance(source, str) or not source:
+            continue
+        if required.issubset(set(_asset_semantic_tags(asset))):
+            return source
+    return None
+
+
+def _business_template_props(
+    template_id: str,
+    capability_id: str,
+    task_spec: TaskSpec,
+    card_spec: dict[str, Any],
+    registry: CardPlanRegistry,
+) -> dict[str, Any]:
+    definition = registry.require_template(template_id)
+    variant = definition.variants[0]
+    properties = variant.parameters_schema.get("properties", {})
+    props: dict[str, Any] = {}
+    for name, required_tags in definition.asset_parameter_semantic_tags.items():
+        if name not in properties:
+            continue
+        source = _matching_asset_source(task_spec, required_tags)
+        if source is not None:
+            props[name] = source
+    if "location" in properties:
+        for binding in card_spec.get("dataBindings", []):
+            if not isinstance(binding, dict) or binding.get("capabilityId") != capability_id:
+                continue
+            arguments = binding.get("arguments")
+            if not isinstance(arguments, dict):
+                continue
+            location = arguments.get("districtName") or arguments.get("prefectureName")
+            if isinstance(location, str) and location.strip():
+                display_location = location.strip()
+                if display_location.endswith("市") and len(display_location) > 1:
+                    display_location = display_location[:-1]
+                props["location"] = display_location
+                break
+    return props
+
+
+def _apply_generic_metric_titles(
+    props: dict[str, Any],
+    properties: dict[str, Any],
+    field_bindings: dict[str, str],
+) -> None:
+    title_parameters = {
+        "valuePath": "title",
+        "firstValuePath": "firstTitle",
+        "secondValuePath": "secondTitle",
+    }
+    for binding_name, relative_path in field_bindings.items():
+        title_name = title_parameters.get(binding_name)
+        if title_name is None or title_name not in properties:
+            continue
+        title = GENERIC_HEALTH_LABELS.get(relative_path)
+        if title is None:
+            raise TemplateGenerationError(
+                f"Generic metric has no trusted title for path: {relative_path}"
+            )
+        props[title_name] = title
+
+
+def _action_icon_source(task_spec: TaskSpec, event_id: str) -> str | None:
+    desired_tags = {
+        token
+        for token in event_id.casefold().replace("-", ".").split(".")
+        if token not in {"event", "open", "settings", "details"}
+    }
+    ranked: list[tuple[int, int, str]] = []
+    for index, asset in enumerate(task_spec.assetCandidates):
+        source = asset.get("src") if isinstance(asset, dict) else None
+        if not isinstance(source, str) or not source:
+            continue
+        score = len(desired_tags.intersection(_asset_semantic_tags(asset)))
+        ranked.append((score, -index, source))
+    if not ranked:
+        return None
+    return max(ranked)[2]
+
+
+def _deterministic_plan_source(
+    plan: TemplatePlan,
+    task_spec: TaskSpec,
+    card_spec: dict[str, Any],
+    registry: CardPlanRegistry,
+) -> str:
+    """Serialize one validated atomic Template Plan without an extra model round-trip."""
+    embedded_actions = {
+        item.business_position: item.action_id
+        for item in plan.action_assignments
+        if item.consumer == "business-template"
+    }
+    children: list[str] = []
+    for slot in plan.business_slots:
+        props = _business_template_props(
+            slot.template_id,
+            slot.capability_id,
+            task_spec,
+            card_spec,
+            registry,
+        )
+        props.update(slot.field_bindings)
+        definition = registry.require_template(slot.template_id)
+        properties = definition.variants[0].parameters_schema.get("properties", {})
+        _apply_generic_metric_titles(props, properties, slot.field_bindings)
+        action_id = embedded_actions.get(slot.position)
+        if action_id is not None:
+            props["actionId"] = action_id
+        children.append(
+            f'Template("{slot.template_id}",{json.dumps(props, ensure_ascii=False)})'
+        )
+
+    bindings_by_id = {item.action_id: item for item in action_bindings(task_spec)}
+    for assignment in plan.action_assignments:
+        if assignment.consumer != "root-action":
+            continue
+        binding = bindings_by_id.get(assignment.action_id)
+        if binding is None:
+            raise TemplateGenerationError("Template Plan references an unavailable Action")
+        if assignment.action_template_id is None:
+            raise TemplateGenerationError("Template Plan root Action has no template")
+        action_definition = registry.require_template(assignment.action_template_id)
+        properties = action_definition.variants[0].parameters_schema.get("properties", {})
+        props = {"actionId": binding.action_id}
+        if "label" in properties:
+            props["label"] = binding.display_label
+        if "icon" in properties:
+            icon = _action_icon_source(task_spec, binding.event_id)
+            if icon is not None:
+                props["icon"] = icon
+        if "subtitle" in properties and binding.event_id == "event.open.music.favorite":
+            props["subtitle"] = "播放我的收藏"
+        for name, value in assignment.template_props.items():
+            if name not in properties or name in {"actionId", "label", "icon", "subtitle"}:
+                raise TemplateGenerationError(
+                    f"Template Plan Action prop is not approved: {name}"
+                )
+            props[name] = value
+        children.append(
+            f'Template("{assignment.action_template_id}",'
+            f'{json.dumps(props, ensure_ascii=False)})'
+        )
+    layout_definition = registry.require_template(plan.layout_template_id)
+    layout_properties = layout_definition.variants[0].parameters_schema.get("properties", {})
+    layout_props: dict[str, Any] = {}
+    if "fusion" in layout_properties and registry.enable_fusion_ball:
+        layout_props["fusion"] = True
+    return (
+        f'Template("{plan.layout_template_id}",'
+        f'{json.dumps(layout_props, ensure_ascii=False)},'
+        + ",".join(children)
+        + ");"
+    )
+
+
 def _prompt_size_summary(messages: list[dict[str, str]]) -> dict[str, int]:
     system_chars = sum(
         len(item["content"])
@@ -325,6 +558,7 @@ async def _generate_selected_templates(
     registry: CardPlanRegistry,
     model_client: Any,
     template_plans: tuple[TemplatePlan, ...] = (),
+    deterministic_plan: bool = False,
 ) -> TemplateEngineOutput:
     generic_paths: list[str] = []
     for plan in template_plans:
@@ -365,8 +599,20 @@ async def _generate_selected_templates(
     messages = projection.messages
     repair_count = 0
     while True:
-        phase = "advanced-mixed-body" if repair_count == 0 else "advanced-mixed-body-repair"
-        raw_output = await _generate_hybrid_body(model_client, messages, phase=phase)
+        if deterministic_plan and template_plans:
+            raw_output = _deterministic_plan_source(
+                template_plans[0],
+                projected_task_spec,
+                card_spec,
+                registry,
+            )
+        else:
+            phase = (
+                "advanced-mixed-body"
+                if repair_count == 0
+                else "advanced-mixed-body-repair"
+            )
+            raw_output = await _generate_hybrid_body(model_client, messages, phase=phase)
         try:
             framed_output, _ = frame_ux_layout_root_children(
                 raw_output,
@@ -392,6 +638,10 @@ async def _generate_selected_templates(
             )
             if repair_count >= _MAX_BODY_REPAIRS:
                 raise TemplateGenerationError("template body validation failed") from exc
+            if deterministic_plan and template_plans:
+                raise TemplateGenerationError(
+                    "deterministic template plan failed validation"
+                ) from exc
             repair_count += 1
             messages = build_ux_mixed_validation_retry_prompt(
                 projection.messages,

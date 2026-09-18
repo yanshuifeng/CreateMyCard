@@ -1561,3 +1561,149 @@ Column(
   )
 )
 #End
+
+#Template BluetoothDeviceOverviewConnectionBatteryCompact@1(props: { caseIcon?: asset })
+data = {
+    battery: $path("/batteryLevel"),
+    connected: $path("/isConnected")
+}
+
+Row(
+  {
+    "_advancedComponent": "BluetoothDeviceOverview",
+    "width": "matchParent",
+    "height": "matchParent",
+    "justifyContent": "spaceBetween",
+    "alignItems": "center",
+    "clip": true,
+    "constraintSize": {"minWidth": 0, "minHeight": 0}
+  },
+  Column(
+    {
+      "layoutWeight": 1,
+      "height": 36,
+      "margin": {"top": 1},
+      "itemMargin": 2,
+      "justifyContent": "start",
+      "alignItems": "start"
+    },
+    Text(
+      Expr(`'电量 ' + ${data.battery} + '%'`),
+      {
+        "width": "matchParent",
+        "height": 20,
+        "fontSize": 14,
+        "fontWeight": 700,
+        "fontColor": $theme('primaryColor'),
+        "maxLines": 1,
+        "textOverflow": "ellipsis"
+      }
+    ),
+    Text(
+      Expr(`${data.connected}? '耳机已连接' : '耳机未连接'`),
+      {
+        "width": "matchParent",
+        "height": 14,
+        "fontSize": 10,
+        "fontWeight": 400,
+        "fontColor": $theme('supportContentColor'),
+        "maxLines": 1,
+        "textOverflow": "ellipsis"
+      }
+    )
+  ),
+  #if props.caseIcon
+    Image(props.caseIcon, {
+      "width": 24,
+      "height": 24,
+      "objectFit": "contain",
+      "fillColor": $theme('supportContentColor'),
+      "flexShrink": 0
+    })
+  #endif
+)
+#End
+
+#Template WideWeatherEarphoneThreeMaskLayout@1(props: { fusion?: boolean }, ...children)
+data = {
+}
+
+Stack(
+  {
+    "width": "matchParent",
+    "height": "matchParent",
+    "alignContent": "center",
+    "clip": false,
+    "_preserveTemplateBackground": #Expr(props.fusion ? true : false)
+  },
+  #if props.fusion
+    Stack(
+      {
+        "_id": "q83FusionBackground",
+        "width": 300,
+        "height": 150,
+        "borderRadius": 20,
+        "alignContent": "topStart",
+        "clip": true
+      },
+      Stack(
+        {"width": 360, "height": 220, "alignContent": "bottomEnd"},
+        Divider({"width": 370, "height": 370, "borderRadius": 185, "strokeWidth": 0, "color": "#00000000", "backgroundColor": "#FF121259"})
+      ),
+      Stack(
+        {"width": 220, "height": 370, "alignContent": "bottomEnd"},
+        Divider({"width": 310, "height": 310, "borderRadius": 155, "strokeWidth": 0, "color": "#00000000", "backgroundColor": "#FF1698D9"})
+      ),
+      Stack(
+        {"width": 356, "height": 246, "alignContent": "bottomEnd"},
+        Divider({"width": 156, "height": 156, "borderRadius": 78, "strokeWidth": 0, "color": "#00000000", "backgroundColor": "#FF2B65D9"})
+      ),
+      Divider(
+        {
+          "width": 300,
+          "height": 150,
+          "strokeWidth": 0,
+          "color": "#00000000",
+          "backgroundColor": "#0DFFFFFF",
+          "backdropBlur": {"radius": 110}
+        }
+      )
+    )
+  #endif
+  Row(
+    {
+      "_id": "q83MaskLayout",
+      "width": 276,
+      "height": 126,
+      "itemMargin": 12,
+      "alignItems": "start"
+    },
+    Column(
+      {
+        "width": 132,
+        "height": 126,
+        "padding": 8,
+        "borderRadius": 12,
+        "backgroundColor": "#19CCDDFF",
+        "clip": true
+      },
+      children[0]
+    ),
+    Column(
+      {"width": 132, "height": 126, "itemMargin": 12},
+      Column(
+        {
+          "width": 132,
+          "height": 57,
+          "padding": {"left": 8, "top": 6, "right": 8, "bottom": 7},
+          "borderRadius": 12,
+          "backgroundColor": "#33CCDDFF",
+          "clip": true
+        },
+        children[1]
+      ),
+      Column({"width": 132, "height": 57}, children[2])
+    )
+  )
+)
+#End

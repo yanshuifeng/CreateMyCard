@@ -245,7 +245,7 @@ def build_ux_mixed_prompt(
     allowed_layout_template_ids = tuple(f"{layout_id}@1" for layout_id in allowed_layout_ids)
     for template_id in allowed_layout_template_ids:
         definition = registry.require_template(template_id)
-        if not definition.accepts_children or definition.provider_id != "com.huawei.layout.cli":
+        if not definition.accepts_children:
             raise ValueError(f"UX Layout Template contract is invalid: {template_id}")
     theme_id = None
     if not template_plans:
@@ -844,6 +844,7 @@ def _layout_output_option(
         "WideFullHeroActionLayout": ("Full", "Hero"),
         "WideHeroActionFullLayout": ("Full", "Hero"),
         "WideFullTwoCompactLayout": "Full",
+        "WideWeatherEarphoneThreeMaskLayout": ("Full", "Compact"),
         "WideFourCompactLayout": ("Compact",) * 4,
         "WideFullHeroTwoActionLayout": ("Full", "Hero"),
         "WideTwoHeroActionLayout": ("Hero", "Hero"),
@@ -856,7 +857,10 @@ def _layout_output_option(
         "WideTwoFocusActionLayout": ("Hero", "Hero"),
         "WideTwoFocusTwoActionLayout": ("Hero", "Hero"),
     }[layout_id]
-    if layout_id == "WideFullTwoCompactLayout":
+    if layout_id in {
+        "WideFullTwoCompactLayout",
+        "WideWeatherEarphoneThreeMaskLayout",
+    }:
         business_template_ids = required_template_groups
         layout_kind_label = "Full+Compact"
     elif isinstance(layout_kind, tuple):
@@ -888,6 +892,7 @@ def _layout_output_option(
         "WideFullHeroActionLayout": _PILL_ACTION_TEMPLATE_ID,
         "WideHeroActionFullLayout": _PILL_ACTION_TEMPLATE_ID,
         "WideFullTwoCompactLayout": _COMPACT_ACTION_TEMPLATE_ID,
+        "WideWeatherEarphoneThreeMaskLayout": _COMPACT_ACTION_TEMPLATE_ID,
         "WideHalfTwoCompactLayout": (
             "PlaylistCompactAction@1"
             if "PlaylistCompactAction@1" in action_template_ids
@@ -1459,7 +1464,11 @@ def _filter_second_layer_template_candidates(
                 item for values in candidates_by_component.values() for item in values
             }
             filtered_groups = []
-            for group, layout_kind in zip(required_template_groups, layout_kinds):
+            for group, layout_kind in zip(
+                required_template_groups,
+                layout_kinds,
+                strict=False,
+            ):
                 group_ids = tuple(item for item in group if item in allowed_ids)
                 if not any(
                     provider_template_layout_kind(item) == layout_kind

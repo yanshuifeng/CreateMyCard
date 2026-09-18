@@ -288,12 +288,44 @@ class _PlanModel:
         raise AssertionError("second layer did not receive atomic plans")
 
 
+class _NoModelCalls:
+    async def generate_json(self, *_args, **_kwargs):
+        raise AssertionError("deterministic generation must not call the retrieval model")
+
+    async def generate(self, *_args, **_kwargs):
+        raise AssertionError("deterministic generation must not call the composition model")
+
+
 @pytest.mark.asyncio
 async def test_health_pipeline_compiles_real_relative_paths():
     task, bindings, card, intent = _health_case()
     model = _PlanModel(intent)
     output = await generate_template_a2ui(task, card, bindings, model)
     assert model.calls == 1
+    for path in ("nightSleepDurationText", "dailySteps", "exerciseHeartRateMin"):
+        assert "/data/healthSport/" + path in output.a2ui
+
+
+@pytest.mark.asyncio
+async def test_health_deterministic_pipeline_supplies_trusted_metric_titles():
+    from services.template_generation.engine.cardplan.generic_metrics import (
+        GENERIC_HEALTH_LABELS,
+    )
+
+    task, bindings, card, _ = _health_case()
+    expected_labels = {
+        GENERIC_HEALTH_LABELS[path]
+        for path in ("/exerciseHeartRateMin", "/nightSleepDurationText")
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        bindings,
+        _NoModelCalls(),
+        deterministic_plan=True,
+    )
+    for label in expected_labels:
+        assert label in output.a2ui
     for path in ("nightSleepDurationText", "dailySteps", "exerciseHeartRateMin"):
         assert "/data/healthSport/" + path in output.a2ui
 
@@ -356,6 +388,126 @@ def test_four_actions_are_limited_to_supported_wide_layouts():
     small = task.model_copy(update={"size": "2x2"})
     with pytest.raises(TemplateRetrievalMiss, match="budget"):
         _plans(small, _WEATHER_BATTERY_BINDINGS, _weather_battery_card_spec(), intent)
+
+
+@pytest.mark.asyncio
+async def test_deterministic_four_action_plan_compiles_without_action_labels():
+    task = _weather_battery_task(False)
+    data = task.dataModelSchema.get("data")
+    assert isinstance(data, dict)
+    phone = data.get("phoneBattery")
+    assert isinstance(phone, dict)
+    phone.update(batterySOCText=_field("68%"), batteryCapacityLevelDesc=_field("正常电量"))
+    ids = (
+        "event.open.weather",
+        "event.open.settings.battery",
+        "event.open.settings.batteryHealth",
+        "event.setPowerSavingMode",
+    )
+    task.eventCandidates = [
+        EventAction(id=event_id, call="clickToDeeplink", args={"uri": event_id})
+        for event_id in ids
+    ]
+    task.assetCandidates = [
+        {"src": "resources/base/media/heart_fill.svg", "description": "动作图标"}
+    ]
+    battery_binding = CandidateDataBinding(
+        capabilityId="GetPhoneBatteryInfo",
+        writeResultTo="/data/phoneBattery",
+        candidateOutputFields=[
+            "/batterySOC",
+            "/batterySOCText",
+            "/chargingStatusDesc",
+            "/batteryCapacityLevelDesc",
+        ],
+    )
+    card = {
+        "title": "电量快捷操作",
+        "suggestSize": "2x4",
+        "dataBindings": [
+            {
+                "capabilityId": "GetPhoneBatteryInfo",
+                "writeResultTo": "/data/phoneBattery",
+            }
+        ],
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        (battery_binding,),
+        _NoModelCalls(),
+        deterministic_plan=True,
+        trusted_template_candidate_ids=("BatteryOverviewFull@1",),
+    )
+    assert "WideFullFourActionLayout@1" in output.template_ids
+    assert "LargeIconAction@1" in output.template_ids
+    assert output.a2ui.count('"call":"clickToDeeplink"') == 4
+
+
+@pytest.mark.asyncio
+async def test_deterministic_icon_action_plan_compiles_without_label_prop():
+    task = TaskSpec(
+        userQuery="显示手机电量并打开电池设置",
+        size="2x2",
+        eventCandidates=[
+            EventAction(
+                id="event.open.settings.battery",
+                call="clickToDeeplink",
+                args={"uri": "settings://battery"},
+            )
+        ],
+        assetCandidates=[
+            {
+                "src": "resources/base/media/heart_fill.svg",
+                "description": "电池设置动作图标",
+                "sceneTags": ["battery", "action"],
+            }
+        ],
+        dataModelSchema={
+            "data": {
+                "phoneBattery": {
+                    "batterySOC": _field(68, "integer"),
+                    "batterySOCText": _field("68%"),
+                    "chargingStatusDesc": _field("未充电"),
+                    "batteryCapacityLevelDesc": _field("正常电量"),
+                }
+            }
+        },
+    )
+    binding = CandidateDataBinding(
+        capabilityId="GetPhoneBatteryInfo",
+        writeResultTo="/data/phoneBattery",
+        candidateOutputFields=[
+            "/batterySOC",
+            "/batterySOCText",
+            "/chargingStatusDesc",
+            "/batteryCapacityLevelDesc",
+        ],
+    )
+    card = {
+        "title": "手机电量",
+        "suggestSize": "2x2",
+        "dataBindings": [
+            {
+                "capabilityId": "GetPhoneBatteryInfo",
+                "writeResultTo": "/data/phoneBattery",
+            }
+        ],
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        (binding,),
+        _NoModelCalls(),
+        deterministic_plan=True,
+        trusted_template_candidate_ids=("BatteryOverviewFull@1",),
+    )
+    assert output.template_ids == (
+        "BatteryOverviewFull@1",
+        "IconAction@1",
+        "FullIconActionLayout@1",
+    )
+    assert "settings://battery" in output.a2ui
 
 
 @pytest.mark.asyncio

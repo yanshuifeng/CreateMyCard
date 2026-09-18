@@ -62,7 +62,7 @@ _ACTION_LABELS = {
     "event.open.weather": "查看详情",
     "event.open.clock.alarm": "设置闹钟",
     "event.open.music.daily": "每日推荐",
-    "event.open.music.favorite": "心动歌单",
+    "event.open.music.favorite": "打开歌单",
     "event.open.health.sport": "今日训练",
     "event.open.health.sleep": "睡眠详情",
     "event.viewCalendarEvent": "查看日程",
@@ -72,6 +72,7 @@ _ACTION_LABELS = {
 _ACTION_SUBTITLES = {
     "event.viewCalendarEvent": "日程详情",
     "event.open.clock.alarm": "闹钟应用",
+    "event.open.music.favorite": "播放我的收藏",
 }
 _ASSET_SEMANTIC_TERMS = {
     "calendar": ("calendar", "schedule", "日程", "日历"),
@@ -94,6 +95,8 @@ _ASSET_SEMANTIC_TERMS = {
     "pulse": ("pulse", "bpm", "脉搏", "心率"),
     "call": ("call", "phone", "电话", "拨打"),
     "weather": ("weather", "天气"),
+    "water": ("water", "drop", "水滴", "湿度", "饮水", "降雨"),
+    "rain": ("rain", "降雨", "下雨", "降水", "雨滴"),
     "weather-condition": ("晴天", "天气降雨", "台风", "大风提醒"),
     "weather-temperature-indicator": (
         "weather_thermometer", "天气温度", "当前气温", "温度计", "温度指标", "温差变化", "冷热趋势",
@@ -197,7 +200,10 @@ def build_hybrid_prompt(
             continue
         for value in binding["arguments"].values():
             if isinstance(value, str) and value.strip():
-                binding_argument_literals.append(str(value))
+                literal = value.strip()
+                binding_argument_literals.append(literal)
+                if literal.endswith("市") and len(literal) > 1:
+                    binding_argument_literals.append(literal[:-1])
     trusted_literals = _unique(
         [
             *((task_spec.userQuery,) if expose_data_facts else ()),

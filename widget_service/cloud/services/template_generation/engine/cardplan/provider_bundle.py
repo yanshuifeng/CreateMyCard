@@ -66,6 +66,7 @@ _LAYOUT_COMPONENTS = frozenset(
         "WideFullHeroActionLayout",
         "WideHeroActionFullLayout",
         "WideFullTwoCompactLayout",
+        "WideWeatherEarphoneThreeMaskLayout",
         "WideFourCompactLayout",
         "WideFullHeroTwoActionLayout",
         "WideTwoHeroActionLayout",
@@ -1736,6 +1737,7 @@ def _compile_time_conditional_value(call: ast.Call) -> TemplateValue:
             "binding",
             "parameter",
             "literal",
+            "theme",
             "compile-time-conditional",
         }:
             raise ValueError(

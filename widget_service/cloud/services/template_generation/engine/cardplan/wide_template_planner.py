@@ -35,6 +35,9 @@ class WideLayoutOption:
     action_templates: tuple[str, ...] = ()
     # 有归属的按钮区按 child 位置绑定业务；None 表示独立共享操作区。
     action_owners: tuple[int | None, ...] = ()
+    required_template_ids: frozenset[str] = frozenset()
+    required_action_event_ids: frozenset[str] = frozenset()
+    action_template_props: tuple[dict[str, object], ...] = ()
 
 
 # 顺序只用于同分方案的稳定择优；不得因前一形态不成立而拒绝后续形态。
@@ -54,6 +57,20 @@ _WIDE_LAYOUTS = (
     WideLayoutOption(
         "WideHalfTwoCompactLayout", ("WideHalf", "Compact"), ("CompactAction",), (None,)
     ),
+    WideLayoutOption(
+        "WideWeatherEarphoneThreeMaskLayout",
+        ("Full", "Compact"),
+        ("CompactAction",),
+        (None,),
+        frozenset(
+            {
+                "WeatherOverviewCyclingRainFull@1",
+                "BluetoothDeviceOverviewConnectionBatteryCompact@1",
+            }
+        ),
+        frozenset({"event.open.music.favorite"}),
+        ({"compactInset": True, "strongMaskBackground": True},),
+    ),
     WideLayoutOption("WideFullTwoCompactLayout", ("Full", "Compact"), ("CompactAction",), (None,)),
     WideLayoutOption("WideFullTwoCompactLayout", ("Hero", "Compact"), ("CompactAction",), (None,)),
     WideLayoutOption("WideTwoFocusTwoActionLayout", ("Hero", "Hero"), ("PillAction",) * 2, (0, 1)),
@@ -71,6 +88,21 @@ _WIDE_LAYOUTS = (
         "WideHalfFourLargeActionLayout", ("WideHalf",), ("LargeIconAction",) * 4, (None,) * 4
     ),
 )
+
+
+def wide_layout_specificity(layout_template_id: str) -> int:
+    """Return the number of exact template/action constraints on a wide layout.
+
+    A constrained layout is a more precise match than a generic layout with the
+    same roles.  Keeping this signal on the declarative layout option avoids
+    adding case-specific selection branches to the planner.
+    """
+    for layout in _WIDE_LAYOUTS:
+        if f"{layout.layout_id}@1" == layout_template_id:
+            return len(layout.required_template_ids) + len(
+                layout.required_action_event_ids
+            )
+    return 0
 
 
 @dataclass(frozen=True)
@@ -108,6 +140,14 @@ def wide_plan_compositions(
             continue
         for layout in _WIDE_LAYOUTS:
             if len(layout.roles) != len(slots):
+                continue
+            if layout.required_template_ids and {
+                slot.template_id for slot in slots
+            } != layout.required_template_ids:
+                continue
+            if layout.required_action_event_ids and {
+                action.event_id for action in actions
+            } != layout.required_action_event_ids:
                 continue
             embedded = len(actions) == 1 and (
                 layout.layout_id == "WideFullOnlyLayout"
@@ -291,8 +331,13 @@ def _action_assignments(
     }
     for ordered in permutations(actions):
         assignments: list[TemplatePlanActionAssignment] = []
-        for action, template, owner in zip(
-            ordered, layout.action_templates, layout.action_owners, strict=True
+        template_props = layout.action_template_props or ({},) * len(layout.action_templates)
+        for action, template, owner, props in zip(
+            ordered,
+            layout.action_templates,
+            layout.action_owners,
+            template_props,
+            strict=True,
         ):
             positions = owners.get(action.action_id, ())
             # Only the migrated weather/countdown pair permits either mirrored
@@ -310,6 +355,7 @@ def _action_assignments(
                     consumer="root-action",
                     businessPosition=position,
                     actionTemplateId=f"{template}@1",
+                    templateProps=props,
                 )
             )
         if len(assignments) == len(actions):

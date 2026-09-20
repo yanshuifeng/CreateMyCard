@@ -493,9 +493,15 @@ def build_ux_mixed_prompt(
     action_template_ids = (
         layout_selection.action_template_ids if selected_action_ids else ()
     )
-    if layout_selection.layout_ids == ("WideHalfTwoCompactLayout",):
-        if selected_action_ids == ("event.open.music.daily",):
-            action_template_ids = ("PlaylistCompactAction@1",)
+    # 仅无 Plan 的旧路径保留歌单改写；有 Plan 时 action_template_ids 已由
+    # _planned_layout_selection 从计划推导（Planner 负责歌单专用模板），
+    # 改写整组会破坏 PillAction 与 WideHalf 混排的多 Plan 提示词。
+    if (
+        not template_plans
+        and layout_selection.layout_ids == ("WideHalfTwoCompactLayout",)
+        and selected_action_ids == ("event.open.music.daily",)
+    ):
+        action_template_ids = ("PlaylistCompactAction@1",)
     action_template_contracts = build_template_prompt_contracts(
         action_template_ids,
         contract,

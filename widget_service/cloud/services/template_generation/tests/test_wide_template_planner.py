@@ -7,6 +7,7 @@ import json
 import pytest
 
 from models.generation import CandidateDataBinding, EventAction, TaskSpec
+from services.template_generation.engine.advanced.ux_mixed_prompt import build_ux_mixed_prompt
 from services.template_generation.engine.cardplan.compiler import (
     _expand_health_metric_generic_template,
     _validate_allowed_template_plan,
@@ -17,6 +18,9 @@ from services.template_generation.engine.cardplan.prompt import action_bindings
 from services.template_generation.engine.cardplan.registry import get_cardplan_registry
 from services.template_generation.engine.cardplan.template_plan_planner import (
     plan_template_candidates,
+    planner_component_candidates,
+    planner_required_template_groups,
+    planner_scope,
 )
 from services.template_generation.engine.cardplan.template_retrieval import (
     TemplateRetrievalMiss,
@@ -487,3 +491,150 @@ async def test_wide_full_embedded_action_uses_the_common_planner():
     output = await generate_template_a2ui(task, card, bindings, model)
     assert model.calls == 1
     assert output.a2ui.count('"call":"clickToDeeplink"') == 1
+
+
+def _music_battery_case(
+    event_id="event.open.music.daily",
+    query="帮我做个卡片，看手机剩余电量、耳机连接状态、耳机仓电量和左右耳机电量，点一下打开每日30首歌单。",
+    assets=(
+        {"src": "resources/base/media/music_fill.svg", "description": "歌单入口图标"},
+        {"src": "resources/base/media/heart_fill.svg", "description": "电量图标"},
+    ),
+):
+    """Q079 形态：手机电量 + 耳机仓左右耳 + 单个 2x4 根动作。"""
+    phone_fields = ("/batterySOCText",)
+    earphone_fields = (
+        "/isConnected",
+        "/batteryLevel",
+        "/leftBatteryLevel",
+        "/rightBatteryLevel",
+    )
+    bindings = (
+        CandidateDataBinding(
+            capabilityId="GetPhoneBatteryInfo",
+            writeResultTo="/data/phoneBattery",
+            candidateOutputFields=list(phone_fields),
+        ),
+        CandidateDataBinding(
+            capabilityId="GetEarphoneInfo",
+            writeResultTo="/data/earphone",
+            candidateOutputFields=list(earphone_fields),
+        ),
+    )
+    task = TaskSpec(
+        userQuery=query,
+        size="2x4",
+        eventCandidates=[
+            EventAction(
+                id=event_id,
+                call="clickToDeeplink",
+                args={"uri": "hwmusic://com.huawei.hmsapp.music/showMusicList?code=a001&type=4"},
+            )
+        ],
+        assetCandidates=list(assets),
+        dataModelSchema={
+            "data": {
+                "phoneBattery": {"batterySOCText": _field("68%")},
+                "earphone": {
+                    "isConnected": _field(True, "boolean"),
+                    "batteryLevel": _field(60, "integer"),
+                    "leftBatteryLevel": _field(70, "integer"),
+                    "rightBatteryLevel": _field(80, "integer"),
+                },
+            }
+        },
+    )
+    card = {
+        "title": "耳机续航歌单",
+        "description": "手机电量+耳机仓左右耳+歌单",
+        "suggestSize": "2x4",
+        "dataBindings": [
+            {"capabilityId": binding.capabilityId, "writeResultTo": binding.writeResultTo}
+            for binding in bindings
+        ],
+    }
+    intent = TemplateSearchIntent(
+        requiredOutputFieldsByCapability={
+            "GetPhoneBatteryInfo": phone_fields,
+            "GetEarphoneInfo": earphone_fields,
+        },
+        action=(event_id,),
+    )
+    return task, bindings, card, intent
+
+
+def _wide_half_root_action(plans):
+    assignments = [
+        assignment
+        for plan in plans
+        if plan.layout_template_id == "WideHalfTwoCompactLayout@1"
+        for assignment in plan.action_assignments
+        if assignment.consumer == "root-action"
+    ]
+    assert len(assignments) == 1
+    return assignments[0]
+
+
+def test_wide_half_compact_music_action_plans_playlist_compact_action():
+    task, bindings, card, intent = _music_battery_case()
+    plans = _plans(task, bindings, card, intent)
+    assignment = _wide_half_root_action(plans)
+    assert assignment.action_id == "event.open.music.daily"
+    assert assignment.action_template_id == "PlaylistCompactAction@1"
+
+
+def test_wide_half_compact_non_music_action_keeps_compact_action():
+    task, bindings, card, intent = _music_battery_case(
+        event_id="event.open.settings.bluetooth",
+        query="查看手机剩余电量和耳机电量，点一下打开蓝牙设置。",
+    )
+    plans = _plans(task, bindings, card, intent)
+    assignment = _wide_half_root_action(plans)
+    assert assignment.action_template_id == "CompactAction@1"
+
+
+def test_iconless_music_daily_wide_half_compact_plan_is_rejected():
+    task, bindings, card, intent = _music_battery_case(assets=())
+    with pytest.raises(TemplateRetrievalMiss):
+        _plans(task, bindings, card, intent)
+
+
+@pytest.mark.asyncio
+async def test_music_daily_playlist_plan_prompt_and_compile_end_to_end():
+    task, bindings, card, intent = _music_battery_case()
+    registry = get_cardplan_registry()
+    plans = _plans(task, bindings, card, intent)
+    projection = build_ux_mixed_prompt(
+        task_spec=task,
+        card_spec=card,
+        scope=planner_scope(plans),
+        component_candidates=planner_component_candidates(plans),
+        required_template_groups=planner_required_template_groups(plans),
+        template_plans=plans,
+        registry=registry,
+    )
+    lines = {}
+    for line in projection.messages[1]["content"].splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key in {"planCandidates", "actionContracts", "outputGrammar"}:
+            lines[key] = value
+    action_contracts = json.loads(lines["actionContracts"])
+    assert any(item.get("templateId") == "PlaylistCompactAction@1" for item in action_contracts)
+    assert any(
+        item["layoutTemplateId"] == "WideHalfTwoCompactLayout@1"
+        and item["actionAssignments"][0]["actionTemplateId"] == "PlaylistCompactAction@1"
+        for item in json.loads(lines["planCandidates"])
+    )
+    grammar_options = json.loads(lines["outputGrammar"])["atomicPlanOptions"]
+    assert any(
+        child["templateId"] == "PlaylistCompactAction@1"
+        for option in grammar_options
+        for child in option["actionChildren"]
+    )
+    model = _PlanModel(intent, actions=action_bindings(task))
+    output = await generate_template_a2ui(task, card, bindings, model)
+    assert model.calls == 1
+    assert output.a2ui.count('"call":"clickToDeeplink"') == 1
+    assert _validate_allowed_template_plan(
+        parse_ux_layout_card(model.body), projection.contract, registry, card_size="2x4"
+    )

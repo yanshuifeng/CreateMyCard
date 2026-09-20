@@ -281,9 +281,17 @@ def _action_assignments(
                     ),
                 )
         return
-    if any(
-        not _action_template_has_complete_signature(f"{template}@1", task, registry)
+    # effective_ids 今天与逐模板检查完全等价：CompactAction@1 与
+    # PlaylistCompactAction@1 的必填 icon 签名相同（语义标签为空），
+    # 因此跨 action×template 的并集只会放大、不会放行原本会被拒绝的计划。
+    effective_ids = {
+        f"{_root_action_template(layout.layout_id, action, template)}@1"
+        for action in actions
         for template in layout.action_templates
+    }
+    if any(
+        not _action_template_has_complete_signature(template_id, task, registry)
+        for template_id in effective_ids
     ):
         return
     owners = {
@@ -309,7 +317,9 @@ def _action_assignments(
                     actionId=action.action_id,
                     consumer="root-action",
                     businessPosition=position,
-                    actionTemplateId=f"{template}@1",
+                    actionTemplateId=(
+                        f"{_root_action_template(layout.layout_id, action, template)}@1"
+                    ),
                 )
             )
         if len(assignments) == len(actions):
@@ -317,6 +327,17 @@ def _action_assignments(
         # 共享操作区保持输入事件顺序；只有成对按钮需要按业务重排。
         if all(owner is None for owner in layout.action_owners):
             break
+
+
+def _root_action_template(layout_id: str, action: ActionBinding, template: str) -> str:
+    """歌单专用动作在 Planner 阶段确定，贯穿计划、提示词与编译契约。"""
+    if (
+        layout_id == "WideHalfTwoCompactLayout"
+        and template == "CompactAction"
+        and action.event_id == "event.open.music.daily"
+    ):
+        return "PlaylistCompactAction"
+    return template
 
 
 def _action_template_has_complete_signature(

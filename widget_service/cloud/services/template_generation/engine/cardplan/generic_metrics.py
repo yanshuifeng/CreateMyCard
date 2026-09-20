@@ -1,6 +1,7 @@
 """通用健康指标的服务端标准显示名称。"""
 
 GENERIC_HEALTH_LABELS = {
+    "/nightSleepDurationText": "睡眠时长",
     "/dailySteps": "步数",
     "/exerciseDurationText": "运动时长",
     "/exerciseHeartRateAvg": "平均心率",

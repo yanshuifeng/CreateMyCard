@@ -23,6 +23,7 @@ _BUSINESS_TEMPLATE_SUPPORTED_LAYOUTS = (
     "WideFullHeroActionLayout",
     "WideHeroActionFullLayout",
     "WideFullTwoCompactLayout",
+    "WideWeatherEarphoneThreeMaskLayout",
     "WideFourCompactLayout",
     "WideFullHeroTwoActionLayout",
     "WideTwoHeroActionLayout",
@@ -90,13 +91,18 @@ class TemplatePlanActionAssignment(StrictModel):
     consumer: Literal["root-action", "business-template"]
     business_position: int | None = Field(default=None, alias="businessPosition", ge=0)
     action_template_id: str | None = Field(default=None, alias="actionTemplateId")
+    template_props: dict[str, Any] = Field(default_factory=dict, alias="templateProps")
 
     @model_validator(mode="after")
     def valid_consumer(self) -> TemplatePlanActionAssignment:
         if self.consumer == "root-action":
             if self.action_template_id is None:
                 raise ValueError("root Action must declare actionTemplateId")
-        elif self.business_position is None or self.action_template_id is not None:
+        elif (
+            self.business_position is None
+            or self.action_template_id is not None
+            or self.template_props
+        ):
             raise ValueError("business Action must declare only businessPosition")
         return self
 

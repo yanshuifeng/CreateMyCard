@@ -411,6 +411,62 @@
           "earphone-case"
         ]
       }
+    },
+    {
+      "templateId": "BluetoothDeviceOverviewConnectionBatteryCompact@1",
+      "businessId": "BluetoothDeviceOverview",
+      "capabilityId": "GetEarphoneInfo",
+      "description": "耳机连接与仓电量 Compact，主行展示耳机仓电量，次行展示连接状态，可选耳机仓图标。",
+      "entry": "templates/bluetooth-device-overview.cardtpl",
+      "primaryData": [
+        "/batteryLevel"
+      ],
+      "secondaryData": [
+        "/isConnected"
+      ],
+      "optionalData": [],
+      "assetParameterSemanticTags": {
+        "caseIcon": [
+          "earphone-case"
+        ]
+      }
+    },
+    {
+      "templateId": "WideWeatherEarphoneThreeMaskLayout@1",
+      "description": "Q083 天气降水、耳机电量与收藏歌单动作的 2x4 三蒙版布局。",
+      "entry": "templates/bluetooth-device-overview.cardtpl"
+    }
+  ],
+  "layoutComponents": [
+    {
+      "name": "WideWeatherEarphoneThreeMaskLayout",
+      "description": "仅用于 Q083 2x4；依次承载天气 Full、耳机 Compact 和一个 CompactAction，UI 由本 Provider 的 cardtpl 声明。",
+      "supportedCardSizes": [
+        "2x4"
+      ],
+      "minChildren": 2,
+      "maxChildrenBySize": {
+        "2x4": 2
+      },
+      "actionPolicy": "required",
+      "minActionChildrenBySize": {
+        "2x4": 1
+      },
+      "maxActionChildrenBySize": {
+        "2x4": 1
+      },
+      "parametersSchema": {
+        "type": "object",
+        "properties": {
+          "fusion": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "loweringBySize": {
+        "2x4": "row"
+      }
     }
   ],
   "compatibility": {

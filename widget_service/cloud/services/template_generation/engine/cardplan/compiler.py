@@ -476,7 +476,7 @@ def compile_ux_layout_card(
     content = _deduplicate_visible_text(content, task_spec)
     content_height = _estimate_height(content)
     body_budget = _ux_layout_body_budget(registry, task_spec.size)
-    if content_height > body_budget:
+    if not _preserves_template_background(content) and content_height > body_budget:
         content = _constrain_content_height(content, body_budget)
     fusion_palette = _template_fusion_ball_palette(
         task_spec.size,
@@ -934,6 +934,7 @@ def _expand_call(
             "WideFullHeroActionLayout",
             "WideHeroActionFullLayout",
             "WideFullTwoCompactLayout",
+            "WideWeatherEarphoneThreeMaskLayout",
             "WideFourCompactLayout",
             "WideFullHeroTwoActionLayout",
             "WideTwoHeroActionLayout",
@@ -1263,6 +1264,13 @@ def _validate_provider_template_state(
                 raise TerselConversionError(
                     "Bluetooth Provider Template variant does not match "
                     "the trusted connection state."
+                )
+            return
+        if variant_name == "connectionBatteryCompact":
+            if facts.is_connected is None or facts.case_battery_level is None:
+                raise TerselConversionError(
+                    "Bluetooth Provider Template variant does not match "
+                    "the trusted connection and case battery state."
                 )
             return
         if variant_name == "earbudsSupport":
@@ -5530,6 +5538,22 @@ def _compile_ux_layout_shell(
 ) -> Nested2Node:
     theme = registry.require_theme(contract.theme_profile_id)
     root_options = _normalize_theme_styles(theme.root_style)
+    content_options = next(
+        (value for value in content.values if isinstance(value, dict)),
+        None,
+    )
+    preserve_template_background = _preserves_template_background(content)
+    if content_options and "_preserveTemplateBackground" in content_options:
+        cleaned = dict(content_options)
+        cleaned.pop("_preserveTemplateBackground", None)
+        values = tuple(
+            cleaned if value is content_options else value for value in content.values
+        )
+        content = Nested2Node(content.component_type, values, content.children)
+    if preserve_template_background:
+        root_options.pop("linearGradient", None)
+        root_options["backgroundColor"] = "#00000000"
+        root_options["padding"] = 0
     root_options.setdefault("padding", registry.ux_tokens["safeInset"])
     root_options.setdefault("borderRadius", registry.ux_tokens["radius"])
     root_options.setdefault("itemMargin", registry.ux_tokens["sectionGap"])
@@ -5541,6 +5565,14 @@ def _compile_ux_layout_shell(
     root_options["_id"] = "root"
     template_root = _merge_node_options(content, {"_id": _TEMPLATE_ROOT_ID})
     return Nested2Node("Column", ("card", root_options), (template_root,))
+
+
+def _preserves_template_background(content: Nested2Node) -> bool:
+    options = next(
+        (value for value in content.values if isinstance(value, dict)),
+        None,
+    )
+    return bool(options and options.get("_preserveTemplateBackground") is True)
 
 
 def _template_fusion_ball_palette(
@@ -6534,6 +6566,10 @@ def _validate_provider_template_layout_action_requirements(
         "WideFullHeroActionLayout": (("Full", "Hero"), ("PillAction",)),
         "WideHeroActionFullLayout": (("Full", "Hero"), ("PillAction",)),
         "WideFullTwoCompactLayout": (("Full", "Compact", "Compact"), ()),
+        "WideWeatherEarphoneThreeMaskLayout": (
+            ("Full", "Compact"),
+            ("CompactAction",),
+        ),
         "WideFourCompactLayout": (("Compact",) * 4, ()),
         "WideFullHeroTwoActionLayout": (
             ("Full", "Hero"),
@@ -6659,7 +6695,7 @@ def _parsed_layout_template_id(
     if layout_id not in UX_LAYOUT_COMPONENT_IDS:
         return ""
     definition = registry.require_template(node.name)
-    if not definition.accepts_children or definition.provider_id != "com.huawei.layout.cli":
+    if not definition.accepts_children:
         return ""
     return layout_id
 
@@ -6722,6 +6758,17 @@ def _composition_matches_template_plan(
     layout_id = _parsed_layout_template_id(composition, registry)
     if f"{layout_id}@1" != plan.layout_template_id:
         return False
+    layout_definition = registry.require_template(plan.layout_template_id)
+    layout_properties = layout_definition.variants[0].parameters_schema.get("properties", {})
+    layout_params = (
+        composition.values[0]
+        if composition.values and isinstance(composition.values[0], dict)
+        else {}
+    )
+    if "fusion" in layout_properties:
+        expected_fusion = True if registry.enable_fusion_ball else None
+        if layout_params.get("fusion") is not expected_fusion:
+            return False
     root_assignments = tuple(
         item for item in plan.action_assignments if item.consumer == "root-action"
     )
@@ -6753,6 +6800,8 @@ def _composition_matches_template_plan(
             return False
         params = child.values[0] if child.values and isinstance(child.values[0], dict) else {}
         if params.get("actionId") != assignment.action_id:
+            return False
+        if any(params.get(name) != value for name, value in assignment.template_props.items()):
             return False
     return True
 
@@ -9157,6 +9206,14 @@ def _lower_action_template_tree(
     root_options = next((value for value in content.values if isinstance(value, dict)), None)
     if root_options is None or "onClick" not in root_options:
         raise TerselConversionError("UX Action Template must declare onClick.")
+    preserve_template_background = root_options.get("_preserveTemplateBackground") is True
+    if "_preserveTemplateBackground" in root_options:
+        cleaned = dict(root_options)
+        cleaned.pop("_preserveTemplateBackground", None)
+        values = tuple(cleaned if value is root_options else value for value in content.values)
+        content = Nested2Node(content.component_type, values, content.children)
+    if preserve_template_background:
+        return content
     return _merge_node_options(content, {"backgroundColor": background})
 
 

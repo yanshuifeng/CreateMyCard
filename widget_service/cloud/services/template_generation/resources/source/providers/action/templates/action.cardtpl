@@ -33,7 +33,7 @@ Stack({
 )
 #End
 
-#Template CompactAction@1(props: { actionId: string, label: string, icon: asset, subtitle?: string, prominent?: boolean })
+#Template CompactAction@1(props: { actionId: string, label: string, icon: asset, subtitle?: string, prominent?: boolean, embedded?: boolean })
 data = {
 }
 
@@ -41,8 +41,9 @@ Stack({
   "width": "matchParent",
   "height": "matchParent",
   "borderRadius": $theme('supportContentStyle.borderRadius'),
-  "backgroundColor": $theme('supportContentStyle.backgroundColor'),
+  "backgroundColor": #Expr(props.embedded ? '#00000000' : $theme('supportContentStyle.backgroundColor')),
   "alignContent": "center",
+  "clip": false,
   "onClick": EventAction(props.actionId)
 },
 #if props.prominent
@@ -95,7 +96,12 @@ Stack({
   Row({
     "width": "matchParent",
     "height": "matchParent",
-    "padding": {"left": 12, "top": 0, "right": 16, "bottom": 0},
+    "padding": {
+      "left": #Expr(props.embedded ? 8 : 12),
+      "top": #Expr(props.embedded ? 6 : 0),
+      "right": #Expr(props.embedded ? 8 : 16),
+      "bottom": #Expr(props.embedded ? 7 : 0)
+    },
     "justifyContent": "spaceBetween",
     "alignItems": "center"
   },

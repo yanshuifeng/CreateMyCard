@@ -88,6 +88,63 @@ class AdvancedComponentCapability(StrictModel):
         return self
 
 
+class UxLayoutBusinessSlot(StrictModel):
+    """One ordered business slot in a declarative Layout contract."""
+
+    position: int = Field(ge=0)
+    layout_role: str = Field(alias="layoutRole", min_length=1)
+    template_ids: tuple[str, ...] = Field(alias="templateIds", min_length=1)
+
+
+class UxLayoutActionSlot(StrictModel):
+    """One ordered Action slot with a closed event and fixed-prop contract."""
+
+    position: int = Field(ge=0)
+    template_id: str = Field(alias="templateId", min_length=1)
+    event_ids: tuple[str, ...] = Field(alias="eventIds", min_length=1)
+    business_position: int | None = Field(default=None, alias="businessPosition", ge=0)
+    fixed_props: dict[str, str | int | float | bool] = Field(
+        default_factory=dict,
+        alias="fixedProps",
+    )
+
+    @model_validator(mode="after")
+    def valid_fixed_props(self) -> UxLayoutActionSlot:
+        forbidden = {"actionId", "icon", "src", "binding", "asset"}.intersection(
+            self.fixed_props
+        )
+        if forbidden:
+            raise ValueError(
+                "UX Layout fixed Action props cannot own events, bindings, or assets"
+            )
+        if len(self.event_ids) != len(set(self.event_ids)):
+            raise ValueError("UX Layout Action eventIds must be unique")
+        return self
+
+
+class UxLayoutFixedParameter(StrictModel):
+    """A server-owned Layout parameter from one controlled configuration source."""
+
+    source: Literal["fusion-enabled"]
+    omit_when_false: bool = Field(default=False, alias="omitWhenFalse")
+
+
+class UxLayoutSurfaceBudget(StrictModel):
+    """Separate full-card background and safe content geometry."""
+
+    canvas_width: int = Field(alias="canvasWidth", gt=0)
+    canvas_height: int = Field(alias="canvasHeight", gt=0)
+    content_width: int = Field(alias="contentWidth", gt=0)
+    content_height: int = Field(alias="contentHeight", gt=0)
+    full_bleed_parameter: str | None = Field(default=None, alias="fullBleedParameter")
+
+    @model_validator(mode="after")
+    def valid_geometry(self) -> UxLayoutSurfaceBudget:
+        if self.content_width > self.canvas_width or self.content_height > self.canvas_height:
+            raise ValueError("UX Layout content budget must fit inside its canvas")
+        return self
+
+
 class UxLayoutComponentCapability(StrictModel):
     """只描述几何职责的布局高级组件，不能读取业务字段。"""
 
@@ -110,6 +167,22 @@ class UxLayoutComponentCapability(StrictModel):
     parameters_schema: dict[str, Any] = Field(alias="parametersSchema")
     lowering_by_size: dict[Literal["2x2", "2x4"], Literal["row", "column"]] = Field(
         alias="loweringBySize"
+    )
+    business_slots: tuple[UxLayoutBusinessSlot, ...] = Field(
+        default=(),
+        alias="businessSlots",
+    )
+    action_slots: tuple[UxLayoutActionSlot, ...] = Field(
+        default=(),
+        alias="actionSlots",
+    )
+    fixed_parameters: dict[str, UxLayoutFixedParameter] = Field(
+        default_factory=dict,
+        alias="fixedParameters",
+    )
+    surface_budget: UxLayoutSurfaceBudget | None = Field(
+        default=None,
+        alias="surfaceBudget",
     )
 
     @model_validator(mode="after")
@@ -145,6 +218,42 @@ class UxLayoutComponentCapability(StrictModel):
         schema_is_object = self.parameters_schema.get("type") == "object"
         if not schema_is_object or self.parameters_schema.get("additionalProperties") is not False:
             raise ValueError("UX Layout parametersSchema must be a closed object schema")
+        if self.business_slots:
+            positions = tuple(slot.position for slot in self.business_slots)
+            if positions != tuple(range(len(self.business_slots))):
+                raise ValueError("UX Layout businessSlots must be ordered and contiguous")
+            if any(
+                len(self.business_slots) != self.minimum_children(size)
+                or len(self.business_slots) != self.max_children_by_size[size]
+                for size in sizes
+            ):
+                raise ValueError("Declarative UX Layout businessSlots require an exact budget")
+        if self.action_slots:
+            positions = tuple(slot.position for slot in self.action_slots)
+            if positions != tuple(range(len(self.action_slots))):
+                raise ValueError("UX Layout actionSlots must be ordered and contiguous")
+            if any(
+                slot.business_position is not None
+                and slot.business_position >= len(self.business_slots)
+                for slot in self.action_slots
+            ):
+                raise ValueError("UX Layout Action businessPosition is outside businessSlots")
+            if any(
+                len(self.action_slots) != self.min_action_children_by_size[size]
+                or len(self.action_slots) != self.max_action_children_by_size[size]
+                for size in sizes
+            ):
+                raise ValueError("Declarative UX Layout actionSlots require an exact budget")
+        properties = self.parameters_schema.get("properties", {})
+        if not set(self.fixed_parameters).issubset(properties):
+            raise ValueError("UX Layout fixedParameters must be declared in parametersSchema")
+        if self.surface_budget is not None:
+            full_bleed = self.surface_budget.full_bleed_parameter
+            if full_bleed is not None:
+                if full_bleed not in self.fixed_parameters:
+                    raise ValueError("UX Layout full-bleed parameter must be server-owned")
+                if properties.get(full_bleed, {}).get("type") != "boolean":
+                    raise ValueError("UX Layout full-bleed parameter must be boolean")
         return self
 
     def minimum_children(self, size: Literal["2x2", "2x4"]) -> int:

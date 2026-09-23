@@ -29,7 +29,7 @@ from .template_retrieval import (
     TemplateSearchIntent,
     TemplateSearchResult,
 )
-from .wide_template_planner import wide_plan_compositions
+from .wide_template_planner import wide_layout_specificity, wide_plan_compositions
 
 _MAX_PLANS = 3
 _PILL_ACTION_TEMPLATE_ID = "PillAction@1"
@@ -538,9 +538,23 @@ def _make_plan(
         planId="draft",
         themeId=theme_id,
         layoutTemplateId=layout_template_id,
+        layoutProps=_layout_fixed_props(layout_id, registry),
         businessSlots=slots,
         actionAssignments=assignments,
     )
+
+
+def _layout_fixed_props(
+    layout_id: str,
+    registry: CardPlanRegistry,
+) -> dict[str, str | int | float | bool]:
+    layout = registry.require_ux_layout_component(layout_id)
+    values: dict[str, str | int | float | bool] = {}
+    for name, parameter in layout.fixed_parameters.items():
+        if parameter.source == "fusion-enabled":
+            if registry.enable_fusion_ball or not parameter.omit_when_false:
+                values[name] = registry.enable_fusion_ball
+    return values
 
 
 def _resolve_theme(
@@ -622,6 +636,7 @@ def _deduplicate_drafts(drafts: list[_PlanDraft]) -> list[_PlanDraft]:
         signature = (
             plan.theme_id,
             plan.layout_template_id,
+            tuple(plan.layout_props.items()),
             tuple(
                 (slot.template_id, tuple(slot.field_bindings.items()))
                 for slot in plan.business_slots
@@ -632,6 +647,7 @@ def _deduplicate_drafts(drafts: list[_PlanDraft]) -> list[_PlanDraft]:
                     item.consumer,
                     item.business_position,
                     item.action_template_id,
+                    tuple(item.template_props.items()),
                 )
                 for item in plan.action_assignments
             ),
@@ -677,6 +693,7 @@ def _wide_plan_score(
     actual_order = tuple(dict.fromkeys(slot.capability_id for slot in plan.business_slots))
     order_matches = int(actual_order == requested_order)
     return (
+        wide_layout_specificity(plan.layout_template_id, registry),
         embedded_count,
         base[0],
         -generic_count,

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from copy import copy
 
 import pytest
 
 from models.generation import CandidateDataBinding, EventAction, TaskSpec
+from services.template_generation.engine.advanced.models import UxLayoutComponentCapability
 from services.template_generation.engine.cardplan.compiler import (
     _expand_health_metric_generic_template,
     _validate_allowed_template_plan,
@@ -24,6 +26,7 @@ from services.template_generation.engine.cardplan.template_retrieval import (
     build_template_retrieval_prompt,
     search_template_variants,
 )
+from services.template_generation.engine.cardplan.wide_template_planner import _wide_layouts
 from services.template_generation.engine.pipeline import (
     TemplateGenerationError,
     generate_template_a2ui,
@@ -96,6 +99,10 @@ def _plans(task, bindings, card, intent):
 
 
 def _body(plan, actions, *, tamper=None):
+    from services.template_generation.engine.cardplan.generic_metrics import (
+        GENERIC_HEALTH_LABELS,
+    )
+
     children = []
     embedded = {
         action.business_position: action.action_id
@@ -106,11 +113,20 @@ def _body(plan, actions, *, tamper=None):
         props = dict(slot.field_bindings)
         if props:
             if "valuePath" in props:
-                props["title"] = "步数" if props.get("valuePath") == "/dailySteps" else "最低心率"
+                props["title"] = GENERIC_HEALTH_LABELS.get(
+                    props["valuePath"],
+                    "健康数据",
+                )
                 props["sourceIcon"] = "resources/base/media/heart_fill.svg"
             else:
-                props["firstTitle"] = "步数"
-                props["secondTitle"] = "最低心率"
+                props["firstTitle"] = GENERIC_HEALTH_LABELS.get(
+                    props.get("firstValuePath", ""),
+                    "健康数据",
+                )
+                props["secondTitle"] = GENERIC_HEALTH_LABELS.get(
+                    props.get("secondValuePath", ""),
+                    "健康数据",
+                )
             if tamper is not None:
                 for name in slot.field_bindings:
                     props[name] = tamper
@@ -122,17 +138,23 @@ def _body(plan, actions, *, tamper=None):
     for assignment in plan.action_assignments:
         if assignment.consumer != "root-action":
             continue
-        label = labels.get(assignment.action_id)
-        assert label is not None
-        props = {"actionId": assignment.action_id, "label": label}
-        if assignment.action_template_id in {"LargeIconAction@1", "IconAction@1"}:
-            props.pop("label")
+        props = {"actionId": assignment.action_id}
+        if assignment.action_template_id in {"PillAction@1", "CompactAction@1"}:
+            label = labels.get(assignment.action_id)
+            assert label is not None
+            props["label"] = label
         if assignment.action_template_id != "PillAction@1":
             props["icon"] = "resources/base/media/heart_fill.svg"
+        props.update(assignment.template_props)
         children.append(
             f'Template("{assignment.action_template_id}", {json.dumps(props, ensure_ascii=False)})'
         )
-    return f'Template("{plan.layout_template_id}", {{}}, ' + ", ".join(children) + ");"
+    return (
+        f'Template("{plan.layout_template_id}", '
+        f'{json.dumps(plan.layout_props, ensure_ascii=False)}, '
+        + ", ".join(children)
+        + ");"
+    )
 
 
 def _contract(plans, task):
@@ -176,6 +198,52 @@ def test_wide_first_layer_has_no_ui_decision():
     action = properties.get("action")
     assert isinstance(action, dict)
     assert action.get("maxItems") == 4
+
+
+def test_declarative_wide_layout_is_discovered_without_engine_whitelist() -> None:
+    registry = copy(get_cardplan_registry())
+    registry.ux_layout_components = dict(registry.ux_layout_components)
+    layout = UxLayoutComponentCapability.model_validate(
+        {
+            "name": "TemporaryProviderLayout",
+            "description": "测试 Provider 临时布局",
+            "supportedCardSizes": ["2x4"],
+            "minChildren": 2,
+            "maxChildrenBySize": {"2x4": 2},
+            "actionPolicy": "none",
+            "minActionChildrenBySize": {"2x4": 0},
+            "maxActionChildrenBySize": {"2x4": 0},
+            "parametersSchema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            },
+            "loweringBySize": {"2x4": "row"},
+            "businessSlots": [
+                {
+                    "position": 0,
+                    "layoutRole": "Full",
+                    "templateIds": ["WeatherOverviewCyclingRainFull@1"],
+                },
+                {
+                    "position": 1,
+                    "layoutRole": "Compact",
+                    "templateIds": [
+                        "BluetoothDeviceOverviewConnectionBatteryCompact@1"
+                    ],
+                },
+            ],
+        }
+    )
+    registry.ux_layout_components[layout.name] = layout
+
+    discovered = {item.layout_id: item for item in _wide_layouts(registry)}
+
+    assert discovered[layout.name].roles == ("Full", "Compact")
+    assert discovered[layout.name].business_template_ids_by_slot == (
+        ("WeatherOverviewCyclingRainFull@1",),
+        ("BluetoothDeviceOverviewConnectionBatteryCompact@1",),
+    )
 
 
 @pytest.mark.parametrize("richer", (False, True))
@@ -300,6 +368,29 @@ async def test_health_pipeline_compiles_real_relative_paths():
 
 
 @pytest.mark.asyncio
+async def test_health_model_plan_supplies_trusted_metric_titles():
+    from services.template_generation.engine.cardplan.generic_metrics import (
+        GENERIC_HEALTH_LABELS,
+    )
+
+    task, bindings, card, intent = _health_case()
+    expected_labels = {
+        GENERIC_HEALTH_LABELS[path]
+        for path in ("/dailySteps", "/exerciseHeartRateMin")
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        bindings,
+        _PlanModel(intent),
+    )
+    for label in expected_labels:
+        assert label in output.a2ui
+    for path in ("nightSleepDurationText", "dailySteps", "exerciseHeartRateMin"):
+        assert "/data/healthSport/" + path in output.a2ui
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("replacement", ("/dailySteps", "/nightSleepDurationText"))
 async def test_fill_data_cannot_duplicate_or_replace_planned_metric(replacement):
     task, bindings, card, intent = _health_case()
@@ -357,6 +448,138 @@ def test_four_actions_are_limited_to_supported_wide_layouts():
     small = task.model_copy(update={"size": "2x2"})
     with pytest.raises(TemplateRetrievalMiss, match="budget"):
         _plans(small, _WEATHER_BATTERY_BINDINGS, _weather_battery_card_spec(), intent)
+
+
+@pytest.mark.asyncio
+async def test_model_four_action_plan_compiles_without_action_labels():
+    task = _weather_battery_task(False)
+    data = task.dataModelSchema.get("data")
+    assert isinstance(data, dict)
+    phone = data.get("phoneBattery")
+    assert isinstance(phone, dict)
+    phone.update(batterySOCText=_field("68%"), batteryCapacityLevelDesc=_field("正常电量"))
+    ids = (
+        "event.open.weather",
+        "event.open.settings.battery",
+        "event.open.settings.batteryHealth",
+        "event.setPowerSavingMode",
+    )
+    task.eventCandidates = [
+        EventAction(id=event_id, call="clickToDeeplink", args={"uri": event_id})
+        for event_id in ids
+    ]
+    task.assetCandidates = [
+        {"src": "resources/base/media/heart_fill.svg", "description": "动作图标"}
+    ]
+    battery_binding = CandidateDataBinding(
+        capabilityId="GetPhoneBatteryInfo",
+        writeResultTo="/data/phoneBattery",
+        candidateOutputFields=[
+            "/batterySOC",
+            "/batterySOCText",
+            "/chargingStatusDesc",
+            "/batteryCapacityLevelDesc",
+        ],
+    )
+    card = {
+        "title": "电量快捷操作",
+        "suggestSize": "2x4",
+        "dataBindings": [
+            {
+                "capabilityId": "GetPhoneBatteryInfo",
+                "writeResultTo": "/data/phoneBattery",
+            }
+        ],
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        (battery_binding,),
+        _PlanModel(
+            TemplateSearchIntent(
+                requiredOutputFieldsByCapability={
+                    "GetPhoneBatteryInfo": ("/batterySOC",),
+                },
+                action=ids,
+            )
+        ),
+        trusted_template_candidate_ids=("BatteryOverviewFull@1",),
+    )
+    assert "WideFullFourActionLayout@1" in output.template_ids
+    assert "LargeIconAction@1" in output.template_ids
+    assert output.a2ui.count('"call":"clickToDeeplink"') == 4
+
+
+@pytest.mark.asyncio
+async def test_model_icon_action_plan_compiles_without_label_prop():
+    task = TaskSpec(
+        userQuery="显示手机电量并打开电池设置",
+        size="2x2",
+        eventCandidates=[
+            EventAction(
+                id="event.open.settings.battery",
+                call="clickToDeeplink",
+                args={"uri": "settings://battery"},
+            )
+        ],
+        assetCandidates=[
+            {
+                "src": "resources/base/media/heart_fill.svg",
+                "description": "电池设置动作图标",
+                "sceneTags": ["battery", "action"],
+            }
+        ],
+        dataModelSchema={
+            "data": {
+                "phoneBattery": {
+                    "batterySOC": _field(68, "integer"),
+                    "batterySOCText": _field("68%"),
+                    "chargingStatusDesc": _field("未充电"),
+                    "batteryCapacityLevelDesc": _field("正常电量"),
+                }
+            }
+        },
+    )
+    binding = CandidateDataBinding(
+        capabilityId="GetPhoneBatteryInfo",
+        writeResultTo="/data/phoneBattery",
+        candidateOutputFields=[
+            "/batterySOC",
+            "/batterySOCText",
+            "/chargingStatusDesc",
+            "/batteryCapacityLevelDesc",
+        ],
+    )
+    card = {
+        "title": "手机电量",
+        "suggestSize": "2x2",
+        "dataBindings": [
+            {
+                "capabilityId": "GetPhoneBatteryInfo",
+                "writeResultTo": "/data/phoneBattery",
+            }
+        ],
+    }
+    output = await generate_template_a2ui(
+        task,
+        card,
+        (binding,),
+        _PlanModel(
+            TemplateSearchIntent(
+                requiredOutputFieldsByCapability={
+                    "GetPhoneBatteryInfo": ("/batterySOC",),
+                },
+                action=("event.open.settings.battery",),
+            )
+        ),
+        trusted_template_candidate_ids=("BatteryOverviewFull@1",),
+    )
+    assert output.template_ids == (
+        "BatteryOverviewFull@1",
+        "IconAction@1",
+        "FullIconActionLayout@1",
+    )
+    assert "settings://battery" in output.a2ui
 
 
 @pytest.mark.asyncio

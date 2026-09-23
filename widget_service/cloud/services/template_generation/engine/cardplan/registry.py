@@ -51,6 +51,7 @@ class CardPlanRegistry:
     ) -> None:
         if not isinstance(enable_fusion_ball, bool):
             raise ValueError("enable_fusion_ball must be boolean")
+        self.enable_fusion_ball = enable_fusion_ball
         bundled_source_root = Path(__file__).resolve().parents[2] / "resources" / "source"
         self.source_root = source_root or bundled_source_root
         self.disabled_provider_ids = frozenset(disabled_provider_ids)
@@ -528,12 +529,12 @@ class CardPlanRegistry:
     def _validate_distributed_resources(self) -> None:
         if set(self.ux_size_budgets) != {"2x2", "2x4"}:
             raise ValueError("Theme base size budgets are incomplete")
-        if len(self.ux_layout_components) != len(UX_LAYOUT_COMPONENT_IDS):
+        if len(self.ux_layout_components) < len(UX_LAYOUT_COMPONENT_IDS):
             raise ValueError("Layout Provider family count is incomplete")
         if not self.ux_business_components:
             raise ValueError("Provider Template business index must not be empty")
         known_layouts = set(self.ux_layout_components)
-        if known_layouts != set(UX_LAYOUT_COMPONENT_IDS):
+        if not set(UX_LAYOUT_COMPONENT_IDS).issubset(known_layouts):
             raise ValueError("Layout Provider registry IDs are incomplete")
         for layout in self.ux_layout_components.values():
             Draft202012Validator.check_schema(layout.parameters_schema)
@@ -592,6 +593,38 @@ class CardPlanRegistry:
             definition = self.require_template(f"{layout.name}@1")
             if definition.provider_id != provider_id:
                 raise ValueError(f"UX Layout Component is outside its Provider: {layout.name}")
+            for slot in layout.business_slots:
+                for template_id in slot.template_ids:
+                    business_template = self.require_template(template_id)
+                    if business_template.business_id is None:
+                        raise ValueError(
+                            "UX Layout business slot must reference a business Template: "
+                            f"{layout.name}/{template_id}"
+                        )
+            for slot in layout.action_slots:
+                action_template = self.require_template(slot.template_id)
+                if action_template.business_id is not None or action_template.accepts_children:
+                    raise ValueError(
+                        "UX Layout Action slot must reference a leaf Action Template: "
+                        f"{layout.name}/{slot.template_id}"
+                    )
+                properties = action_template.variants[0].parameters_schema.get(
+                    "properties", {}
+                )
+                if not set(slot.fixed_props).issubset(properties):
+                    raise ValueError(
+                        "UX Layout fixed Action props are outside the Template signature: "
+                        f"{layout.name}/{slot.template_id}"
+                    )
+                for name, value in slot.fixed_props.items():
+                    errors = tuple(
+                        Draft202012Validator(properties[name]).iter_errors(value)
+                    )
+                    if errors:
+                        raise ValueError(
+                            "UX Layout fixed Action prop violates the Template signature: "
+                            f"{layout.name}/{slot.template_id}/{name}"
+                        )
 
     def require_ux_business_component(
         self,

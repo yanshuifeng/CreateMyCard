@@ -245,7 +245,7 @@ def build_ux_mixed_prompt(
     allowed_layout_template_ids = tuple(f"{layout_id}@1" for layout_id in allowed_layout_ids)
     for template_id in allowed_layout_template_ids:
         definition = registry.require_template(template_id)
-        if not definition.accepts_children or definition.provider_id != "com.huawei.layout.cli":
+        if not definition.accepts_children:
             raise ValueError(f"UX Layout Template contract is invalid: {template_id}")
     theme_id = None
     if not template_plans:
@@ -418,10 +418,21 @@ def build_ux_mixed_prompt(
         item for item in protected_literals if item not in provider_owned_values
     )
     required_numbers = tuple(item for item in required_numbers if item not in provider_owned_values)
+    planned_fixed_literals = tuple(
+        value
+        for plan in template_plans
+        for assignment in plan.action_assignments
+        for value in assignment.template_props.values()
+        if isinstance(value, str)
+    )
     contract = base.contract.model_copy(
         update={
             "trusted_literals": tuple(dict.fromkeys(
-                (*base.contract.trusted_literals, *GENERIC_HEALTH_LABELS.values())
+                (
+                    *base.contract.trusted_literals,
+                    *GENERIC_HEALTH_LABELS.values(),
+                    *planned_fixed_literals,
+                )
             )),
             # 原子计划已校验操作归属，内置按钮不占布局根的 Action 槽位。
             "content_action_ids": (
@@ -924,7 +935,7 @@ def _layout_output_option(
 _ACTION_TEMPLATE_ALLOWED_PROPS: dict[str, tuple[str, ...]] = {
     "PillAction@1": ("actionId", "label"),
     "PlaylistCompactAction@1": ("actionId", "label"),
-    "CompactAction@1": ("actionId", "label", "subtitle", "prominent"),
+    "CompactAction@1": ("actionId", "label", "subtitle", "prominent", "embedded"),
     "IconAction@1": ("actionId",),
     "LargeIconAction@1": ("actionId",),
 }
@@ -933,6 +944,7 @@ _ACTION_TEMPLATE_ALLOWED_PROPS: dict[str, tuple[str, ...]] = {
 def _action_output_syntax(
     action_template_id: str,
     action: dict[str, str],
+    fixed_props: dict[str, Any] | None = None,
 ) -> str:
     allowed_props = _ACTION_TEMPLATE_ALLOWED_PROPS.get(action_template_id)
     filtered = (
@@ -952,6 +964,7 @@ def _action_output_syntax(
         }
     else:
         props = filtered
+    props.update(fixed_props or {})
     return (
         f'Template("{action_template_id}",'
         + json.dumps(props, ensure_ascii=False, separators=(",", ":"))
@@ -1107,13 +1120,21 @@ def _planned_output_grammar(
                 {
                     "position": len(plan.business_slots) + len(root_actions),
                     "templateId": action_template_id,
-                    "syntax": _action_output_syntax(action_template_id, action),
+                    "syntax": _action_output_syntax(
+                        action_template_id,
+                        action,
+                        assignment.template_props,
+                    ),
                 }
             )
         options.append(
             {
                 "planId": plan.plan_id,
-                "root": f'Template("{plan.layout_template_id}", {{}}, ...children);',
+                "root": (
+                    f'Template("{plan.layout_template_id}", '
+                    f'{json.dumps(plan.layout_props, ensure_ascii=False, separators=(",", ":"))}, '
+                    "...children);"
+                ),
                 "businessChildren": business_children,
                 "actionChildren": root_actions,
             }
@@ -1459,7 +1480,11 @@ def _filter_second_layer_template_candidates(
                 item for values in candidates_by_component.values() for item in values
             }
             filtered_groups = []
-            for group, layout_kind in zip(required_template_groups, layout_kinds):
+            for group, layout_kind in zip(
+                required_template_groups,
+                layout_kinds,
+                strict=False,
+            ):
                 group_ids = tuple(item for item in group if item in allowed_ids)
                 if not any(
                     provider_template_layout_kind(item) == layout_kind

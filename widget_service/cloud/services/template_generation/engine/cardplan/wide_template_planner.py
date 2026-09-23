@@ -35,6 +35,9 @@ class WideLayoutOption:
     action_templates: tuple[str, ...] = ()
     # 有归属的按钮区按 child 位置绑定业务；None 表示独立共享操作区。
     action_owners: tuple[int | None, ...] = ()
+    business_template_ids_by_slot: tuple[tuple[str, ...], ...] = ()
+    action_event_ids_by_slot: tuple[tuple[str, ...], ...] = ()
+    action_template_props: tuple[dict[str, object], ...] = ()
 
 
 # 顺序只用于同分方案的稳定择优；不得因前一形态不成立而拒绝后续形态。
@@ -73,6 +76,45 @@ _WIDE_LAYOUTS = (
 )
 
 
+def _wide_layouts(registry: CardPlanRegistry) -> tuple[WideLayoutOption, ...]:
+    """Project optional Provider slot contracts into the generic wide planner."""
+    declared: list[WideLayoutOption] = []
+    for layout in registry.ux_layout_components.values():
+        if "2x4" not in layout.supported_card_sizes or not layout.business_slots:
+            continue
+        declared.append(
+            WideLayoutOption(
+                layout.name,
+                tuple(slot.layout_role for slot in layout.business_slots),
+                tuple(slot.template_id.removesuffix("@1") for slot in layout.action_slots),
+                tuple(slot.business_position for slot in layout.action_slots),
+                tuple(slot.template_ids for slot in layout.business_slots),
+                tuple(slot.event_ids for slot in layout.action_slots),
+                tuple(dict(slot.fixed_props) for slot in layout.action_slots),
+            )
+        )
+    declared_ids = {item.layout_id for item in declared}
+    return (*declared, *(item for item in _WIDE_LAYOUTS if item.layout_id not in declared_ids))
+
+
+def wide_layout_specificity(
+    layout_template_id: str,
+    registry: CardPlanRegistry,
+) -> int:
+    """Return the number of exact template/action constraints on a wide layout.
+
+    A constrained layout is a more precise match than a generic layout with the
+    same roles.  Keeping this signal on the declarative layout option avoids
+    adding case-specific selection branches to the planner.
+    """
+    for layout in _wide_layouts(registry):
+        if f"{layout.layout_id}@1" == layout_template_id:
+            return sum(bool(values) for values in layout.business_template_ids_by_slot) + sum(
+                bool(values) for values in layout.action_event_ids_by_slot
+            )
+    return 0
+
+
 @dataclass(frozen=True)
 class WidePlanComposition:
     layout_template_id: str
@@ -106,7 +148,7 @@ def wide_plan_compositions(
         slots = tuple(combined_slots)
         if len(slots) > 4:
             continue
-        for layout in _WIDE_LAYOUTS:
+        for layout in _wide_layouts(registry):
             if len(layout.roles) != len(slots):
                 continue
             embedded = len(actions) == 1 and (
@@ -119,6 +161,15 @@ def wide_plan_compositions(
             if not embedded and len(layout.action_templates) != len(actions):
                 continue
             for ordered in _ordered_slots(slots, layout.roles):
+                if layout.business_template_ids_by_slot and any(
+                    slot.template_id not in allowed
+                    for slot, allowed in zip(
+                        ordered,
+                        layout.business_template_ids_by_slot,
+                        strict=True,
+                    )
+                ):
+                    continue
                 for assignments in _action_assignments(
                     layout, ordered, actions, registry, task, embedded
                 ):
@@ -291,9 +342,18 @@ def _action_assignments(
     }
     for ordered in permutations(actions):
         assignments: list[TemplatePlanActionAssignment] = []
-        for action, template, owner in zip(
-            ordered, layout.action_templates, layout.action_owners, strict=True
+        template_props = layout.action_template_props or ({},) * len(layout.action_templates)
+        event_ids = layout.action_event_ids_by_slot or ((),) * len(layout.action_templates)
+        for action, template, owner, allowed_events, props in zip(
+            ordered,
+            layout.action_templates,
+            layout.action_owners,
+            event_ids,
+            template_props,
+            strict=True,
         ):
+            if allowed_events and action.event_id not in allowed_events:
+                break
             positions = owners.get(action.action_id, ())
             # Only the migrated weather/countdown pair permits either mirrored
             # layout: the visual Action slot may differ from its data owner.
@@ -310,6 +370,7 @@ def _action_assignments(
                     consumer="root-action",
                     businessPosition=position,
                     actionTemplateId=f"{template}@1",
+                    templateProps=props,
                 )
             )
         if len(assignments) == len(actions):

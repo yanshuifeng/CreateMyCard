@@ -90,13 +90,18 @@ class TemplatePlanActionAssignment(StrictModel):
     consumer: Literal["root-action", "business-template"]
     business_position: int | None = Field(default=None, alias="businessPosition", ge=0)
     action_template_id: str | None = Field(default=None, alias="actionTemplateId")
+    template_props: dict[str, Any] = Field(default_factory=dict, alias="templateProps")
 
     @model_validator(mode="after")
     def valid_consumer(self) -> TemplatePlanActionAssignment:
         if self.consumer == "root-action":
             if self.action_template_id is None:
                 raise ValueError("root Action must declare actionTemplateId")
-        elif self.business_position is None or self.action_template_id is not None:
+        elif (
+            self.business_position is None
+            or self.action_template_id is not None
+            or self.template_props
+        ):
             raise ValueError("business Action must declare only businessPosition")
         return self
 
@@ -107,6 +112,10 @@ class TemplatePlan(StrictModel):
     plan_id: str = Field(alias="planId", min_length=1)
     theme_id: str = Field(alias="themeId", min_length=1)
     layout_template_id: str = Field(alias="layoutTemplateId", min_length=1)
+    layout_props: dict[str, str | int | float | bool] = Field(
+        default_factory=dict,
+        alias="layoutProps",
+    )
     business_slots: tuple[TemplatePlanBusinessSlot, ...] = Field(
         alias="businessSlots",
         min_length=1,
@@ -305,6 +314,7 @@ class TemplateDefinition(StrictModel):
         alias="assetParameterSemanticTags",
     )
     supported_event_ids: tuple[str, ...] = Field(default=(), alias="supportedEventIds")
+    required_data_admission: bool = Field(default=False, alias="requiredDataAdmission")
     provider_id: str | None = Field(default=None, alias="providerId")
     business_id: str | None = Field(default=None, alias="businessId")
     capability_id: str | None = Field(default=None, alias="capabilityId")

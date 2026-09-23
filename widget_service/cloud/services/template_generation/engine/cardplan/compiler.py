@@ -80,7 +80,7 @@ from .models import (
 )
 from .parser import ParsedCall, parse_hybrid_card, parse_ux_layout_card
 from .provider_bundle import provider_template_family_identity, provider_template_layout_kind
-from .registry import CardPlanRegistry
+from .registry import CardPlanRegistry, get_cardplan_registry
 
 _STANDARD_CONTAINERS = frozenset({"Row", "Column", "List", "Stack"})
 _CONTAINERS = _STANDARD_CONTAINERS | UX_LAYOUT_COMPONENT_IDS
@@ -374,6 +374,7 @@ def compile_ux_layout_card(
     """
     source = _normalize_resource_cleanup_layout_source(source, contract)
     composition = parse_ux_layout_card(source)
+    composition = _normalize_plan_fixed_props(composition, contract, registry)
     composition = _normalize_resource_usage_optional_icon(composition, contract)
     composition = _normalize_single_resource_usage_title(composition, contract)
     composition = _normalize_trusted_composite_text_calls(composition, contract)
@@ -475,8 +476,13 @@ def compile_ux_layout_card(
     content = _lower_capsule_progress(content)
     content = _deduplicate_visible_text(content, task_spec)
     content_height = _estimate_height(content)
-    body_budget = _ux_layout_body_budget(registry, task_spec.size)
-    if content_height > body_budget:
+    selected_layout = registry.require_ux_layout_component(layout_id)
+    body_budget = (
+        selected_layout.surface_budget.content_height
+        if selected_layout.surface_budget is not None
+        else _ux_layout_body_budget(registry, task_spec.size)
+    )
+    if selected_layout.surface_budget is None and content_height > body_budget:
         content = _constrain_content_height(content, body_budget)
     fusion_palette = _template_fusion_ball_palette(
         task_spec.size,
@@ -488,6 +494,7 @@ def compile_ux_layout_card(
         content,
         contract,
         registry,
+        full_bleed=_layout_uses_full_bleed(selected_layout, composition),
     )
     root = _apply_theme_content_color(root, contract, registry)
     root = _strip_advanced_component_markers(root)
@@ -497,7 +504,9 @@ def compile_ux_layout_card(
     if depth > contract.limits.max_nesting_depth:
         raise TerselConversionError("Hybrid component depth budget exceeded.")
     _validate_expanded_tree(root, contract)
-    if fusion_palette is None:
+    if fusion_palette is None and not _layout_uses_full_bleed(
+        selected_layout, composition
+    ):
         root = apply_content_safe_inset(root, size=task_spec.size)
     else:
         root = apply_fusion_ball_background(
@@ -665,6 +674,105 @@ def _parsed_ux_action_component(node: ParsedCall) -> str | None:
     if node.kind == "template":
         return _ACTION_TEMPLATE_COMPONENTS.get(node.name)
     return None
+
+
+def _normalize_plan_fixed_props(
+    composition: ParsedCall,
+    contract: HybridBodyContract,
+    registry: CardPlanRegistry,
+) -> ParsedCall:
+    """Fill server-owned plan props while rejecting conflicts and extra controls."""
+    if not contract.allowed_template_plans:
+        return composition
+    candidates = tuple(
+        plan
+        for plan in contract.allowed_template_plans
+        if _composition_matches_plan_shape(composition, plan)
+    )
+    if len(candidates) != 1:
+        return composition
+    plan = candidates[0]
+    layout_component_id = plan.layout_template_id.split("@", 1)[0]
+    layout_capability = registry.require_ux_layout_component(layout_component_id)
+    strict_declarative_contract = bool(
+        layout_capability.business_slots or layout_capability.action_slots
+    )
+    if len(composition.values) > 1 or (
+        composition.values and not isinstance(composition.values[0], dict)
+    ):
+        return composition
+    layout_params = dict(composition.values[0]) if composition.values else {}
+    unexpected_layout_props = set(layout_params) - set(plan.layout_props)
+    if strict_declarative_contract and unexpected_layout_props:
+        raise TerselConversionError("Template Plan Layout contains unauthorized props.")
+    for name, value in plan.layout_props.items():
+        if name in layout_params and layout_params[name] != value:
+            raise TerselConversionError("Template Plan Layout fixed prop conflicts with Plan.")
+        layout_params[name] = value
+
+    children = list(composition.children)
+    action_offset = len(plan.business_slots)
+    root_assignments = tuple(
+        item for item in plan.action_assignments if item.consumer == "root-action"
+    )
+    for index, assignment in enumerate(root_assignments):
+        child_index = action_offset + index
+        child = children[child_index]
+        if len(child.values) != 1 or not isinstance(child.values[0], dict):
+            continue
+        params = dict(child.values[0])
+        definition = registry.require_template(child.name)
+        allowed_open_props = {
+            "actionId",
+            "label",
+            "subtitle",
+            *definition.asset_parameter_semantic_tags,
+        }
+        allowed_props = allowed_open_props | set(assignment.template_props)
+        if strict_declarative_contract and set(params) - allowed_props:
+            raise TerselConversionError("Template Plan Action contains unauthorized props.")
+        if params.get("actionId") != assignment.action_id:
+            raise TerselConversionError("Template Plan Action event conflicts with Plan.")
+        for name, value in assignment.template_props.items():
+            if name in params and params[name] != value:
+                raise TerselConversionError("Template Plan Action fixed prop conflicts with Plan.")
+            params[name] = value
+        children[child_index] = ParsedCall(
+            child.kind,
+            child.name,
+            (params,),
+            child.children,
+            child.span,
+        )
+    return ParsedCall(
+        composition.kind,
+        composition.name,
+        (layout_params,),
+        tuple(children),
+        composition.span,
+    )
+
+
+def _composition_matches_plan_shape(
+    composition: ParsedCall,
+    plan: TemplatePlan,
+) -> bool:
+    if composition.kind != "template" or composition.name != plan.layout_template_id:
+        return False
+    root_assignments = tuple(
+        item for item in plan.action_assignments if item.consumer == "root-action"
+    )
+    if len(composition.children) != len(plan.business_slots) + len(root_assignments):
+        return False
+    for slot in plan.business_slots:
+        child = composition.children[slot.position]
+        if child.kind != "template" or child.name != slot.template_id:
+            return False
+    for index, assignment in enumerate(root_assignments, start=len(plan.business_slots)):
+        child = composition.children[index]
+        if child.kind != "template" or child.name != assignment.action_template_id:
+            return False
+    return True
 
 
 def _normalize_trusted_composite_text_calls(
@@ -926,8 +1034,15 @@ def _expand_call(
     )
     _validate_business_template_action(definition, params, contract, task_spec.size)
     _validate_template_parameter_relations(params, variant.parameter_relations)
+    declarative_layout = registry.ux_layout_components.get(ux_layout_id or "")
     standard_template_in_wide_composition = (
-        ux_layout_id
+        (
+            declarative_layout is not None
+            and bool(declarative_layout.business_slots)
+            and provider_template_layout_kind(wire_id)
+            in {slot.layout_role for slot in declarative_layout.business_slots}
+        )
+        or ux_layout_id
         in {
             "WideTwoFullLayout",
             "WideHeroCompactLayout",
@@ -945,6 +1060,9 @@ def _expand_call(
             "WideTwoFocusActionLayout",
             "WideTwoFocusTwoActionLayout",
         }
+    )
+    standard_template_in_wide_composition = (
+        standard_template_in_wide_composition
         and task_spec.size == "2x4"
         and provider_template_layout_kind(wire_id) in {"Full", "Hero", "Compact"}
     )
@@ -960,6 +1078,7 @@ def _expand_call(
         wire_id,
         str(size),
         task_spec,
+        definition=definition,
         business_names=_contract_ux_business_component_names(contract, registry),
     )
     is_card_template = definition.source_format in CARDTPL_SOURCE_FORMATS
@@ -978,12 +1097,12 @@ def _expand_call(
     spread_parent = _template_spread_parent(variant.root)
     layout_template_id = (
         definition.template_id
-        if definition.template_id in UX_LAYOUT_COMPONENT_IDS
+        if definition.template_id in registry.ux_layout_components
         else None
     )
     child_parent = layout_template_id or spread_parent or parent
     child_layout_id = layout_template_id or (
-        spread_parent if spread_parent in UX_LAYOUT_COMPONENT_IDS else ux_layout_id
+        spread_parent if spread_parent in registry.ux_layout_components else ux_layout_id
     )
     expanded_children = tuple(
         _expand_call(
@@ -1005,7 +1124,7 @@ def _expand_call(
         )
     if wire_id == "ux-bluetooth-overview@2" and ux_layout_id == "PeerPairLayout":
         root = _expand_bluetooth_battery_peer(params, registry)
-    elif layout_template_id and variant.root.component not in UX_LAYOUT_COMPONENT_IDS:
+    elif layout_template_id and variant.root.component not in registry.ux_layout_components:
         root = Nested2Node(
             layout_template_id,
             (dict(params),) if params else (),
@@ -1107,8 +1226,17 @@ def _wrap_action_template(
     )
     if binding is None or action_id not in contract.content_action_ids:
         raise TerselConversionError(f"Action Provider Template is not approved: {wire_id}")
+    planned_labels = {
+        assignment.template_props.get("label")
+        for plan in contract.allowed_template_plans
+        for assignment in plan.action_assignments
+        if assignment.consumer == "root-action"
+        and assignment.action_id == action_id
+        and assignment.action_template_id == wire_id
+    }
+    approved_labels = {binding.display_label, *planned_labels}
     if action_component in {"PillAction", "CompactAction"} and (
-        params.get("label") != binding.display_label
+        params.get("label") not in approved_labels
     ):
         raise TerselConversionError(
             f"{action_component} label/actionId pair is not approved."
@@ -1125,15 +1253,20 @@ def _wrap_action_template(
     } and not isinstance(icon, str):
         raise TerselConversionError(f"{action_component} requires an approved icon.")
     if wire_id == "CompactAction@1":
-        expected_subtitle = binding.display_subtitle
+        planned_subtitles = {
+            assignment.template_props.get("subtitle")
+            for plan in contract.allowed_template_plans
+            for assignment in plan.action_assignments
+            if assignment.consumer == "root-action"
+            and assignment.action_id == action_id
+            and assignment.action_template_id == wire_id
+        }
+        approved_subtitles = {binding.display_subtitle, *planned_subtitles}
         actual_subtitle = params.get("subtitle")
-        if expected_subtitle:
-            if actual_subtitle != expected_subtitle:
-                raise TerselConversionError(
-                    "CompactAction subtitle/actionId pair is not approved."
-                )
-        elif actual_subtitle is not None:
-            raise TerselConversionError("CompactAction subtitle is not approved.")
+        if actual_subtitle is not None and actual_subtitle not in approved_subtitles:
+            raise TerselConversionError(
+                "CompactAction subtitle/actionId pair is not approved."
+            )
     bound_root, action_ids = _bind_template_actions(root, contract)
     if action_ids != (action_id,):
         raise TerselConversionError(
@@ -1148,7 +1281,10 @@ def _validate_provider_template_state(
     task_spec: TaskSpec,
     *,
     business_names: set[str],
+    definition: TemplateDefinition | None = None,
 ) -> None:
+    if definition is not None and definition.required_data_admission:
+        return
     identity = provider_template_family_identity(wire_id)
     if identity is not None:
         wire_id, variant_name = identity
@@ -5527,9 +5663,15 @@ def _compile_ux_layout_shell(
     content: Nested2Node,
     contract: HybridBodyContract,
     registry: CardPlanRegistry,
+    *,
+    full_bleed: bool = False,
 ) -> Nested2Node:
     theme = registry.require_theme(contract.theme_profile_id)
     root_options = _normalize_theme_styles(theme.root_style)
+    if full_bleed:
+        root_options.pop("linearGradient", None)
+        root_options["backgroundColor"] = "#00000000"
+        root_options["padding"] = 0
     root_options.setdefault("padding", registry.ux_tokens["safeInset"])
     root_options.setdefault("borderRadius", registry.ux_tokens["radius"])
     root_options.setdefault("itemMargin", registry.ux_tokens["sectionGap"])
@@ -5541,6 +5683,17 @@ def _compile_ux_layout_shell(
     root_options["_id"] = "root"
     template_root = _merge_node_options(content, {"_id": _TEMPLATE_ROOT_ID})
     return Nested2Node("Column", ("card", root_options), (template_root,))
+
+
+def _layout_uses_full_bleed(
+    layout: UxLayoutComponentCapability,
+    composition: ParsedCall,
+) -> bool:
+    budget = layout.surface_budget
+    if budget is None or budget.full_bleed_parameter is None:
+        return False
+    params = composition.values[0] if composition.values else {}
+    return isinstance(params, dict) and params.get(budget.full_bleed_parameter) is True
 
 
 def _template_fusion_ball_palette(
@@ -6475,6 +6628,7 @@ def _validate_ux_layout_root(
         content_children,
         action_children,
         size,
+        registry,
     )
     counted_children = content_children if embedded_actions else node.children
     minimum = layout.minimum_children(size)
@@ -6494,7 +6648,13 @@ def _validate_ux_layout_root(
 
     def reject_nested_layout(current: ParsedCall) -> None:
         for child in current.children:
-            if child.kind == "component" and child.name in UX_LAYOUT_COMPONENT_IDS:
+            if (
+                child.kind == "component"
+                and child.name in registry.ux_layout_components
+            ) or (
+                child.kind == "template"
+                and child.name.removesuffix("@1") in registry.ux_layout_components
+            ):
                 raise TerselConversionError("UX Layout Components cannot be nested.")
             reject_nested_layout(child)
 
@@ -6506,7 +6666,9 @@ def _validate_provider_template_layout_action_requirements(
     content_children: tuple[ParsedCall, ...],
     action_children: tuple[ParsedCall, ...],
     size: Literal["2x2", "2x4"],
+    registry: CardPlanRegistry | None = None,
 ) -> None:
+    registry = registry or get_cardplan_registry()
     layout_kind_items: list[str] = []
     for child in content_children:
         for call in _walk_calls(child):
@@ -6523,6 +6685,37 @@ def _validate_provider_template_layout_action_requirements(
         for child in action_children
         if (action_name := _parsed_ux_action_component(child)) is not None
     )
+    layout = registry.require_ux_layout_component(layout_id)
+    if layout.business_slots:
+        expected_kinds = tuple(slot.layout_role for slot in layout.business_slots)
+        expected_templates = tuple(slot.template_ids for slot in layout.business_slots)
+        actual_templates = tuple(
+            call.name
+            for child in content_children
+            for call in _walk_calls(child)
+            if call.kind == "template"
+            and provider_template_layout_kind(call.name) is not None
+        )
+        expected_actions = tuple(
+            slot.template_id.removesuffix("@1") for slot in layout.action_slots
+        )
+        if (
+            layout_kinds != expected_kinds
+            or len(actual_templates) != len(expected_templates)
+            or any(
+                template_id not in allowed
+                for template_id, allowed in zip(
+                    actual_templates,
+                    expected_templates,
+                    strict=True,
+                )
+            )
+            or action_names != expected_actions
+        ):
+            raise TerselConversionError(
+                f"{layout_id} declarative slot combination is invalid."
+            )
+        return
     layout_is_wide = layout_id.startswith("Wide")
     if layout_is_wide != (size == "2x4"):
         raise TerselConversionError(
@@ -6651,15 +6844,15 @@ def _parsed_layout_template_id(
     node: ParsedCall,
     registry: CardPlanRegistry,
 ) -> str:
-    if node.kind == "component" and node.name in UX_LAYOUT_COMPONENT_IDS:
+    if node.kind == "component" and node.name in registry.ux_layout_components:
         return node.name
     if node.kind != "template" or not node.name.endswith("@1"):
         return ""
     layout_id = node.name.removesuffix("@1")
-    if layout_id not in UX_LAYOUT_COMPONENT_IDS:
+    if layout_id not in registry.ux_layout_components:
         return ""
     definition = registry.require_template(node.name)
-    if not definition.accepts_children or definition.provider_id != "com.huawei.layout.cli":
+    if not definition.accepts_children:
         return ""
     return layout_id
 
@@ -6722,6 +6915,24 @@ def _composition_matches_template_plan(
     layout_id = _parsed_layout_template_id(composition, registry)
     if f"{layout_id}@1" != plan.layout_template_id:
         return False
+    layout_params = (
+        composition.values[0]
+        if composition.values and isinstance(composition.values[0], dict)
+        else {}
+    )
+    layout = registry.require_ux_layout_component(layout_id)
+    if layout.business_slots or layout.action_slots:
+        if layout_params != plan.layout_props:
+            return False
+    else:
+        layout_definition = registry.require_template(plan.layout_template_id)
+        layout_properties = layout_definition.variants[0].parameters_schema.get(
+            "properties", {}
+        )
+        if "fusion" in layout_properties:
+            expected_fusion = True if registry.enable_fusion_ball else None
+            if layout_params.get("fusion") is not expected_fusion:
+                return False
     root_assignments = tuple(
         item for item in plan.action_assignments if item.consumer == "root-action"
     )
@@ -6753,6 +6964,8 @@ def _composition_matches_template_plan(
             return False
         params = child.values[0] if child.values and isinstance(child.values[0], dict) else {}
         if params.get("actionId") != assignment.action_id:
+            return False
+        if any(params.get(name) != value for name, value in assignment.template_props.items()):
             return False
     return True
 
@@ -7518,7 +7731,7 @@ def _lower_ux_layouts(
         )
         for child in node.children
     )
-    if node.component_type not in UX_LAYOUT_COMPONENT_IDS:
+    if node.component_type not in registry.ux_layout_components:
         return Nested2Node(node.component_type, node.values, children)
     layout = registry.require_ux_layout_component(node.component_type)
     if size not in layout.supported_card_sizes:
@@ -7760,7 +7973,7 @@ def _lower_ux_layout_root(
     contract: HybridBodyContract,
     registry: CardPlanRegistry,
 ) -> Nested2Node:
-    if node.component_type not in UX_LAYOUT_COMPONENT_IDS:
+    if node.component_type not in registry.ux_layout_components:
         raise TerselConversionError("UX Mixed root is not a Layout Component.")
     layout = registry.require_ux_layout_component(node.component_type)
     configuration = dict(node.values[0]) if node.values else {}
@@ -9157,6 +9370,8 @@ def _lower_action_template_tree(
     root_options = next((value for value in content.values if isinstance(value, dict)), None)
     if root_options is None or "onClick" not in root_options:
         raise TerselConversionError("UX Action Template must declare onClick.")
+    if root_options.get("backgroundColor") == "#00000000":
+        return content
     return _merge_node_options(content, {"backgroundColor": background})
 
 

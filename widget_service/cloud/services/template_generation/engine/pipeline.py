@@ -10,6 +10,7 @@ from typing import Any
 from app.logger import json_for_log, logger
 from models.generation import CandidateDataBinding, TaskSpec
 from services.card_validation.base import expression_references
+from services.fusion_ball_expander import fusion_ball_enabled
 from services.template_generation.controls import load_template_controls
 from services.template_generation.engine.advanced.content_selectors import (
     apply_content_selectors,
@@ -109,7 +110,9 @@ async def generate_template_a2ui(
             task_spec,
             trusted_template_sample_overrides or {},
         )
-        registry = get_cardplan_registry(enable_fusion_ball)
+        registry = get_cardplan_registry(
+            enable_fusion_ball and fusion_ball_enabled(task_spec.appVersion)
+        )
         controls = load_template_controls()
         available_capability_ids = _card_spec_capability_ids(card_spec)
         effective_capability_ids = resolve_available_capability_ids(
@@ -291,7 +294,7 @@ def _restrict_template_intent_actions[
     trusted_template_action_ids: tuple[str, ...],
     task_spec: TaskSpec,
 ) -> TemplateIntent:
-    """Apply trusted gallery Action overrides before deterministic planning."""
+    """Apply trusted gallery Action overrides before CardPlan planning."""
     if not trusted_template_action_ids:
         return intent
     action_ids = tuple(dict.fromkeys(trusted_template_action_ids))

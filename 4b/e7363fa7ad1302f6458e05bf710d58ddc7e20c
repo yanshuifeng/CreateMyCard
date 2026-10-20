@@ -1,0 +1,44 @@
+widget_service/cloud/services/template_generation/engine/pipeline.py
+  s_38446c11d510f8::t_6a4c6af2249306 277,289,301
+docs/云侧方案设计.md
+  s_38446c11d510f8::t_c2649aea154d45 1255-1257
+  s_38446c11d510f8::t_5383aaabaa8991 1253-1254
+widget_service/cloud/services/template_generation/engine/cardplan/calendar_list_no_action_policy.py
+  s_38446c11d510f8::t_6a4c6af2249306 129,175-178
+widget_service/cloud/services/template_generation/engine/advanced/ux_mixed_prompt.py
+  s_38446c11d510f8::t_5383aaabaa8991 61
+widget_service/cloud/services/template_generation/tests/test_calendar_layout_constraints.py
+  s_38446c11d510f8::t_c2649aea154d45 1-120
+widget_service/cloud/services/template_generation/tests/test_gallery_replay.py
+  s_38446c11d510f8::t_c2649aea154d45 139-171,173,175-184
+  s_38446c11d510f8::t_5383aaabaa8991 10-14,44,71,77-115
+  s_38446c11d510f8::t_35c843ae283326 172,174
+widget_service/cloud/services/template_generation/engine/cardplan/calendar_no_action_policy.py
+  s_38446c11d510f8::t_6a4c6af2249306 105,166-169
+widget_service/cloud/services/template_generation/engine/cardplan/prompt_guidance.py
+  s_38446c11d510f8::t_6a4c6af2249306 19-21,32-34
+widget_service/cloud/services/template_generation/engine/cardplan/calendar_mixed_no_action_policy.py
+  s_38446c11d510f8::t_6a4c6af2249306 40,77-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "4be7363fa7ad1302f6458e05bf710d58ddc7e20c",
+  "prompts": {},
+  "sessions": {
+    "s_38446c11d510f8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15946-ff7a-71b2-81ef-25407f22738c",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":244,\"deletions\":13}}",
+        "stats_total_additions": "244",
+        "stats_total_deletions": "13",
+        "stats_turn_models": "{\"t_35c843ae283326\":\"gpt-6-astra\",\"t_5383aaabaa8991\":\"gpt-6-astra\",\"t_6a4c6af2249306\":\"gpt-6-astra\",\"t_c2649aea154d45\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

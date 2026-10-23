@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "59e6d5005d184d9480938d3208e9571165e7ead4",
+  "prompts": {},
+  "humans": {
+    "h_0be6075e5d5e14": {
+      "author": "yan_shuifeng <yanshuifeng@huawei.com>"
+    }
+  }
+}

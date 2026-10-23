@@ -1,0 +1,41 @@
+widget_service/cloud/services/theme_photo_eligibility.py
+  s_f8e06c6349007f::t_f1d38ec58d4c54 2
+docs/云侧方案设计.md
+  s_f8e06c6349007f::t_79292d3c309d60 195-198
+  s_f8e06c6349007f::t_ff3095fed23b7f 183-191
+  s_f8e06c6349007f::t_368edd0d813b58 233-235
+  s_f8e06c6349007f::t_a1b8b56ee6a9f5 192-194
+widget_service/cloud/services/theme_content_regions.py
+  s_f8e06c6349007f::t_a1b8b56ee6a9f5 6,287
+widget_service/cloud/services/display_text.py
+  s_f8e06c6349007f::t_a1b8b56ee6a9f5 8,14-18,31
+docs/后置主题图片匹配规则.md
+  s_f8e06c6349007f::t_368edd0d813b58 17,22-25,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "73eb8e8f328193a2de28300bd292bd4dad77f57d",
+  "prompts": {},
+  "humans": {
+    "h_0be6075e5d5e14": {
+      "author": "yan_shuifeng <yanshuifeng@huawei.com>"
+    }
+  },
+  "sessions": {
+    "s_f8e06c6349007f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16266-beb3-7042-93f1-4f2b93bd14e7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":293298,\"deletions\":82}}",
+        "stats_total_additions": "76",
+        "stats_total_deletions": "3",
+        "stats_turn_models": "{\"t_09de01fac92793\":\"gpt-6-astra\",\"t_15ec00cf0fdf77\":\"gpt-6-astra\",\"t_21f2896bd92eae\":\"gpt-6-astra\",\"t_257076cdb89040\":\"gpt-6-astra\",\"t_294d4596d0be4f\":\"gpt-6-astra\",\"t_3038df7d28c38a\":\"gpt-6-astra\",\"t_31c0eb1d627f9d\":\"gpt-6-astra\",\"t_3358d6ff2150d6\":\"gpt-6-astra\",\"t_3df4c3c084c32a\":\"gpt-6-astra\",\"t_3ee5030204089f\":\"gpt-6-astra\",\"t_40b0257a368a02\":\"gpt-6-astra\",\"t_40d45a7676195f\":\"gpt-6-astra\",\"t_43563d1810a7eb\":\"gpt-6-astra\",\"t_474dee0be98595\":\"gpt-6-astra\",\"t_4af33700e1e831\":\"gpt-6-astra\",\"t_6011b20d1f56cd\":\"gpt-6-astra\",\"t_6442bb9d6c80bd\":\"gpt-6-astra\",\"t_665cc9ed81a6bf\":\"gpt-6-astra\",\"t_6971507d94952a\":\"gpt-6-astra\",\"t_6ae8f28efa5f17\":\"gpt-6-astra\",\"t_741a0a95e90a4c\":\"gpt-6-astra\",\"t_881cc0f789b63a\":\"gpt-6-astra\",\"t_96125aca69c506\":\"gpt-6-astra\",\"t_967df934841d56\":\"gpt-6-astra\",\"t_a465482779a22d\":\"gpt-6-astra\",\"t_a4bcece4dbe1a9\":\"gpt-6-astra\",\"t_aea25d1c4591bc\":\"gpt-6-astra\",\"t_b1cbb3b7ec2312\":\"gpt-6-astra\",\"t_bbfb75102b0a98\":\"gpt-6-astra\",\"t_bccd917273b13b\":\"gpt-6-astra\",\"t_be4d673ed01ec3\":\"gpt-6-astra\",\"t_c69fb959af252a\":\"gpt-6-astra\",\"t_db78d7cbed593e\":\"gpt-6-astra\",\"t_ea85e0f27dc7d9\":\"gpt-6-astra\",\"t_fe9f831b1f2835\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

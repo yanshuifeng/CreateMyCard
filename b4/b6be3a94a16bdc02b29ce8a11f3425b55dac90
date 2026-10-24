@@ -1,0 +1,91 @@
+widget_service/cloud/services/template_generation/engine/cardplan/photo_policy.py
+  h_0be6075e5d5e14 36-37
+  s_f8e06c6349007f::t_b10769b7ef520b 1-35,38-58
+widget_service/cloud/services/template_generation/docs/template-search-planner-contract.md
+  s_f8e06c6349007f::t_4d35680130d454 453-460
+  s_f8e06c6349007f::t_0d3565d606261e 398-451
+  s_f8e06c6349007f::t_0e0e1804a9209c 452
+widget_service/cloud/services/template_generation/engine/cardplan/compiler.py
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 353,539
+  s_f8e06c6349007f::t_6ccdd042517c92 86-91,318-319,344,522-523,4744,8937,8947
+widget_service/cloud/services/template_generation/engine/cardplan/photo_theme.py
+  s_f8e06c6349007f::t_4d35680130d454 206,210,213,215-216
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 174-181,189,203,205,207,209,217,240
+  s_f8e06c6349007f::t_fd96e3735a4269 208,211-212,214
+  s_f8e06c6349007f::t_b10769b7ef520b 1-21,24-173,182-188,190-202,204,218-238
+  s_f8e06c6349007f::t_5429a42854cc0a 22-23
+  s_f8e06c6349007f::t_ff1516bd82edc8 239
+widget_service/cloud/services/template_generation/engine/compact_dsl_a2ui_converter.py
+  s_f8e06c6349007f::t_0d3565d606261e 1417-1418,1422-1423,1425
+  s_f8e06c6349007f::t_5429a42854cc0a 1419-1421
+widget_service/cloud/services/template_generation/engine/cardplan/models.py
+  s_f8e06c6349007f::t_b10769b7ef520b 110,432-442,476
+widget_service/cloud/services/template_generation/engine/cardplan/prompt.py
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 234
+widget_service/cloud/services/template_generation/engine/cardplan/photo_preference.py
+  s_f8e06c6349007f::t_b10769b7ef520b 1-14
+widget_service/cloud/services/template_generation/tests/test_template_generation.py
+  s_f8e06c6349007f::t_dca28326a4d0f5 6797,6800
+  s_f8e06c6349007f::t_0e0e1804a9209c 6799
+widget_service/cloud/services/template_generation/tests/test_earbud_full_optional_charging.py
+  s_f8e06c6349007f::t_0e0e1804a9209c 435
+  s_f8e06c6349007f::t_a35e19abd65867 431,433-434,436
+docs/云侧方案设计.md
+  s_f8e06c6349007f::t_b10769b7ef520b 183-188
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 190-192
+  s_f8e06c6349007f::t_ff1516bd82edc8 189
+  s_f8e06c6349007f::t_0e0e1804a9209c 193
+widget_service/cloud/services/template_generation/engine/pipeline.py
+  s_f8e06c6349007f::t_5429a42854cc0a 13
+  s_f8e06c6349007f::t_750ff021ba2b46 63,475-477,547-554,567-572,587
+widget_service/cloud/services/template_generation/engine/cardplan/registry.py
+  s_f8e06c6349007f::t_6ccdd042517c92 162,164-168,289-291
+widget_service/cloud/services/template_generation/resources/source/themes/photo-template-mappings.json
+  s_f8e06c6349007f::t_b10769b7ef520b 1-572
+widget_service/cloud/services/template_generation/engine/cardplan/template_plan_planner.py
+  s_f8e06c6349007f::t_6ccdd042517c92 24,219,223
+widget_service/cloud/services/template_generation/engine/cardplan/photo_content.py
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 20,95
+  s_f8e06c6349007f::t_b10769b7ef520b 1-10,18-19,21-94,96-203
+  s_f8e06c6349007f::t_5429a42854cc0a 11-17
+widget_service/cloud/services/template_generation/engine/cardplan/photo_layout.py
+  s_f8e06c6349007f::t_b10769b7ef520b 1-59
+widget_service/cloud/services/template_generation/engine/cardplan/photo_delivery.py
+  s_f8e06c6349007f::t_ae17a85a1af138 1-55
+  s_f8e06c6349007f::t_0d3565d606261e 56-62
+widget_service/cloud/services/template_generation/source_generator.py
+  s_f8e06c6349007f::t_c2f1d82298fabc 9,29-34
+widget_service/cloud/services/widget_generation_service.py
+  s_f8e06c6349007f::t_919741eae1982f 1522-1523,1862-1863
+widget_service/cloud/services/template_generation/engine/cardplan/photo_selection.py
+  s_f8e06c6349007f::t_e5b029a1fcfcfb 23,46-47,55-59,64-66,123
+  s_f8e06c6349007f::t_b10769b7ef520b 1-22,24-37,40-45,48-54,67-122,124-145
+  s_f8e06c6349007f::t_4d35680130d454 38-39,60-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "b4b6be3a94a16bdc02b29ce8a11f3425b55dac90",
+  "prompts": {},
+  "humans": {
+    "h_0be6075e5d5e14": {
+      "author": "yan_shuifeng <yanshuifeng@huawei.com>"
+    }
+  },
+  "sessions": {
+    "s_f8e06c6349007f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16266-beb3-7042-93f1-4f2b93bd14e7",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":284493,\"deletions\":178}}",
+        "stats_total_additions": "148",
+        "stats_total_deletions": "4",
+        "stats_turn_models": "{\"t_0d3565d606261e\":\"gpt-6-astra\",\"t_0e0e1804a9209c\":\"gpt-6-astra\",\"t_101a1dd10c316b\":\"gpt-6-astra\",\"t_304b79b8188409\":\"gpt-6-astra\",\"t_3ed68d6bf85247\":\"gpt-6-astra\",\"t_4d35680130d454\":\"gpt-6-astra\",\"t_50170b20b8e074\":\"gpt-6-astra\",\"t_5429a42854cc0a\":\"gpt-6-astra\",\"t_5bb597d693b7ff\":\"gpt-6-astra\",\"t_669a68cdb0d8f1\":\"gpt-6-astra\",\"t_69152efa8e3f21\":\"gpt-6-astra\",\"t_6ccdd042517c92\":\"gpt-6-astra\",\"t_73dbe416557cbb\":\"gpt-6-astra\",\"t_a35e19abd65867\":\"gpt-6-astra\",\"t_abc044c0264fae\":\"gpt-6-astra\",\"t_b10769b7ef520b\":\"gpt-6-astra\",\"t_b6fd181fbdadd3\":\"gpt-6-astra\",\"t_c3abfef2716e12\":\"gpt-6-astra\",\"t_c59414b59976d3\":\"gpt-6-astra\",\"t_c71b54383b165d\":\"gpt-6-astra\",\"t_d5107b2b215332\":\"gpt-6-astra\",\"t_dca28326a4d0f5\":\"gpt-6-astra\",\"t_e5b029a1fcfcfb\":\"gpt-6-astra\",\"t_e840c36e0c8b1d\":\"gpt-6-astra\",\"t_f6d0c527bf57d3\":\"gpt-6-astra\",\"t_fa16577b2d2108\":\"gpt-6-astra\",\"t_fd96e3735a4269\":\"gpt-6-astra\",\"t_ff1516bd82edc8\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

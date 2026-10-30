@@ -1,0 +1,84 @@
+widget_service/cloud/services/template_generation/docs/provider-template-e2e-gallery.md
+  s_c854899311c69d::t_919d47ccd956cd 25-29,63-71
+  s_c854899311c69d::t_f3b209e18c933c 72
+widget_service/cloud/services/template_generation/tests/test_gallery_replay.py
+  s_c854899311c69d::t_f98175fd24a983 33,254,312
+  s_c854899311c69d::t_919d47ccd956cd 53-92
+widget_service/cloud/services/template_generation/test_support/gallery_replay.py
+  s_c854899311c69d::t_919d47ccd956cd 22,63-79,86,92,97,100-102,106-107,176
+widget_service/cloud/services/template_generation/tests/test_provider_gallery_batch.py
+  s_c854899311c69d::t_919d47ccd956cd 266,274,362,724,728
+widget_service/cloud/services/template_generation/tests/test_wide_template_planner.py
+  s_c854899311c69d::t_6e36945ff0013b 289-302
+  s_c854899311c69d::t_54fc1d7e4a15e1 10
+docs/compact-dsl-validator-refactor/Compact_DSL现有校验规则分类清单_v1.md
+  s_c854899311c69d::t_fe140dab895210 3-9
+docs/云侧方案设计.md
+  s_c854899311c69d::t_18131a8dba52ca 600-605,617-618
+widget_service/cloud/services/template_generation/docs/provider-template-contract.md
+  s_c854899311c69d::t_0aca46a4275083 151-152,154,177-184
+widget_service/cloud/services/template_generation/docs/template-generation-design.md
+  s_c854899311c69d::t_c22fdc06b5442a 35-36
+widget_service/cloud/services/template_generation/docs/template-search-planner-contract.md
+  s_c854899311c69d::t_6b29156e5cadbf 338-342
+widget_service/cloud/services/template_generation/engine/advanced/models.py
+  s_c854899311c69d::t_fdc59d45e9efde 22-23
+widget_service/cloud/services/template_generation/engine/advanced/ux_mixed_prompt.py
+  s_c854899311c69d::t_576f461d9810f0 886-887,929,1346-1347,1350,1391,1393
+widget_service/cloud/services/template_generation/engine/cardplan/compiler.py
+  s_c854899311c69d::t_507fccb1fc8bed 988-989,6761-6762
+widget_service/cloud/services/template_generation/engine/cardplan/generated/prompts.py
+  s_c854899311c69d::t_46629496f59f83 224-229
+widget_service/cloud/services/template_generation/engine/cardplan/layout_surface_policy.py
+  s_c854899311c69d::t_3033c95e89dab8 10,64-72
+widget_service/cloud/services/template_generation/engine/cardplan/models.py
+  s_c854899311c69d::t_06fab031b9cf84 22-23
+widget_service/cloud/services/template_generation/engine/cardplan/provider_bundle.py
+  s_c854899311c69d::t_c3e610eef01337 65-66
+widget_service/cloud/services/template_generation/engine/cardplan/wide_template_planner.py
+  s_c854899311c69d::t_30f9e9bb6d946b 66-67
+widget_service/cloud/services/template_generation/resources/source/prompts/ux-mixed-generator/00-ux-mixed-kernel.md
+  s_c854899311c69d::t_76bd09566ca4ba 35-37
+widget_service/cloud/services/template_generation/resources/source/providers/layout/provider.json
+  s_c854899311c69d::t_0775ca410176a5 51-60,357-408
+widget_service/cloud/services/template_generation/resources/source/providers/layout/templates/layout.cardtpl
+  s_c854899311c69d::t_2b824fa5442f1c 217-269
+widget_service/cloud/services/template_generation/test_support/gallery_background.py
+  s_c854899311c69d::t_181dfc82632efe 1-110
+widget_service/cloud/services/template_generation/test_support/provider_gallery.py
+  s_c854899311c69d::t_f55d9b916d52d8 32,1745-1748,1752,1785-1786
+widget_service/cloud/services/template_generation/tests/test_gallery_background.py
+  s_c854899311c69d::t_bdfe49bb7db365 1-109
+widget_service/cloud/services/template_generation/tests/test_layout_surface_photo_ownership.py
+  s_c854899311c69d::t_c279105a60057b 1-111
+widget_service/cloud/services/template_generation/tests/test_template_generation.py
+  s_c854899311c69d::t_f26c50a9ea342b 1255-1256
+widget_service/cloud/services/template_generation/tests/test_template_internal_contracts.py
+  s_c854899311c69d::t_72b49827ae671e 324-325,342
+widget_service/cloud/services/template_generation/tests/test_wide_gallery_compositions.py
+  s_c854899311c69d::t_f1964d1bab8c03 63-69,99
+widget_service/cloud/services/template_generation/tests/test_wide_hero_compact_layout.py
+  s_c854899311c69d::t_c8e9d8335c0f4f 1-238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "577d5ef79e04cb8d72420607d12add093c3fdfe2",
+  "prompts": {},
+  "sessions": {
+    "s_c854899311c69d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1864b-fb17-7300-a1a5-0952960ac83b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":104,\"deletions\":27}}",
+        "stats_total_additions": "104",
+        "stats_total_deletions": "27",
+        "stats_turn_models": "{\"t_6e36945ff0013b\":\"gpt-6-astra\",\"t_919d47ccd956cd\":\"gpt-6-astra\",\"t_f98175fd24a983\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

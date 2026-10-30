@@ -1,0 +1,58 @@
+widget_service/cloud/services/template_generation/resources/source/providers/weather/layer-docs/second-layer.md
+  s_d47287b1ed1d78::t_1019a9f7c8a4bc 39-40,50,148-154
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/layer-docs/second-layer.md
+  s_d47287b1ed1d78::t_1019a9f7c8a4bc 100-103,105-106
+  s_d47287b1ed1d78::t_be868b8f5a1444 104
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/workout-overview.cardtpl
+  s_d47287b1ed1d78::t_1ba40a89801320 28,65,70
+widget_service/cloud/services/template_generation/resources/source/providers/weather/templates/weather-overview.cardtpl
+  s_d47287b1ed1d78::t_1ba40a89801320 1476,1489,1504-1507,2238-2239,2241-2245,2247,2249-2277,2279-2385,2387-2393
+  s_d47287b1ed1d78::t_e307a2a3800445 604,1643,1670,1677-1678,1681,1689-1690,1693,1830,1878,1940,2093,2095,2101,2109,2111,2117,2386,2457,4173,4462
+  s_d47287b1ed1d78::t_4d3285053ad2ec 1473,1486,1498,1500-1503
+  s_d47287b1ed1d78::t_e8d25bb87601ed 2740,2761,2791
+widget_service/cloud/services/template_generation/tests/test_weather_health_typography.py
+  s_d47287b1ed1d78::t_7817103a769d0b 147
+  s_d47287b1ed1d78::t_8679b562458e9f 131-132,141
+  s_d47287b1ed1d78::t_4825973bb3f22b 9-11
+  s_d47287b1ed1d78::t_2c3ad7b0941ede 106-130,133-140,142-146,148-152
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/training-metrics-overview.cardtpl
+  s_d47287b1ed1d78::t_1ba40a89801320 168-169
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/activity-overview.cardtpl
+  s_d47287b1ed1d78::t_e307a2a3800445 964
+  s_d47287b1ed1d78::t_1ba40a89801320 1029
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "0cda4978a23cae6448288d3b02a1ad3668f17b0a",
+  "prompts": {},
+  "sessions": {
+    "s_c854899311c69d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1864b-fb17-7300-a1a5-0952960ac83b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":184,\"deletions\":0}}",
+        "stats_total_additions": "184",
+        "stats_turn_models": "{\"t_15ee55928a6e9c\":\"gpt-6-astra\",\"t_331c52c0bc495c\":\"gpt-6-astra\",\"t_3a7cc25c501d7b\":\"gpt-6-astra\",\"t_df0f1539bb0fb1\":\"gpt-6-astra\",\"t_fca9f50238bea5\":\"gpt-6-astra\"}"
+      }
+    },
+    "s_d47287b1ed1d78": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a187de-ecaa-7f10-a0d4-5bfc0361ecc9",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":465,\"deletions\":154}}",
+        "stats_total_additions": "465",
+        "stats_total_deletions": "154",
+        "stats_turn_models": "{\"t_1019a9f7c8a4bc\":\"gpt-6-astra\",\"t_1ba40a89801320\":\"gpt-6-astra\",\"t_2b6a912e7e1eb8\":\"gpt-6-astra\",\"t_2c3ad7b0941ede\":\"gpt-6-astra\",\"t_4825973bb3f22b\":\"gpt-6-astra\",\"t_4d3285053ad2ec\":\"gpt-6-astra\",\"t_7817103a769d0b\":\"gpt-6-astra\",\"t_8679b562458e9f\":\"gpt-6-astra\",\"t_8e7e8b916a1baa\":\"gpt-6-astra\",\"t_96a6c6fa7cf12f\":\"gpt-6-astra\",\"t_b1bbb5f4e0fc5b\":\"gpt-6-astra\",\"t_bbb6994a0b8b42\":\"gpt-6-astra\",\"t_be868b8f5a1444\":\"gpt-6-astra\",\"t_c05eef54ea3782\":\"gpt-6-astra\",\"t_e307a2a3800445\":\"gpt-6-astra\",\"t_e8d25bb87601ed\":\"gpt-6-astra\",\"t_f401869e465c87\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

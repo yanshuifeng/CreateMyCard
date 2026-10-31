@@ -1,0 +1,25 @@
+widget_service/cloud/services/template_generation/resources/source/full-icon-action-allowlist.json
+  s_5cd5d5188b44ad::t_bace4144b80300 12,18,24,30,36,44,52,60,68,76,84,92,100,108,116,124,132,140,148,156,164,172,180,188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "9bc0e65ac32d9030bceaf8b9ac8b05fdefa6cd2f",
+  "prompts": {},
+  "sessions": {
+    "s_5cd5d5188b44ad": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1909f-e1b4-7660-b3f8-bd5923724b82",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":24,\"deletions\":24}}",
+        "stats_total_additions": "24",
+        "stats_total_deletions": "24",
+        "stats_turn_models": "{\"t_bace4144b80300\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

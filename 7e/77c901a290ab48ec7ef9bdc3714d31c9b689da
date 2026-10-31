@@ -1,0 +1,59 @@
+widget_service/cloud/services/template_generation/tools/generate_full_icon_action_gallery.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-203
+widget_service/cloud/services/template_generation/tests/test_template_generation.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 5722-5724,5759-5760,5784,5790-5793,5797-5805,5816,5818,8179,8278,8281
+widget_service/cloud/services/template_generation/engine/advanced/ux_mixed_prompt.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 196-207,1266-1271,1305-1309
+widget_service/cloud/services/template_generation/docs/provider-template-contract.md
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 197
+widget_service/cloud/services/template_generation/engine/cardplan/compiler.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 6702-6707
+docs/full-icon-action-review-20261031.md
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-182
+  s_5cd5d5188b44ad::t_4b7855b1d261b4 183-217
+widget_service/cloud/services/template_generation/resources/source/full-icon-action-allowlist.json
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-194
+widget_service/cloud/services/template_generation/tests/test_full_icon_action_allowlist.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-218
+widget_service/cloud/services/template_generation/engine/cardplan/full_icon_action_policy.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-53
+widget_service/cloud/services/template_generation/engine/cardplan/prompt.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 706-707
+widget_service/cloud/services/template_generation/tools/inspect_full_icon_action_gallery.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 1-132
+widget_service/cloud/services/template_generation/engine/cardplan/preview_dataset.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 730-731,735
+widget_service/cloud/services/template_generation/engine/cardplan/registry.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 20,113-119
+docs/云侧方案设计.md
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 670-676
+widget_service/cloud/services/template_generation/engine/cardplan/template_plan_planner.py
+  s_5cd5d5188b44ad::t_f4d75b50f569c8 10,482-488
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "7e77c901a290ab48ec7ef9bdc3714d31c9b689da",
+  "prompts": {},
+  "humans": {
+    "h_0be6075e5d5e14": {
+      "author": "yan_shuifeng <yanshuifeng@huawei.com>"
+    }
+  },
+  "sessions": {
+    "s_5cd5d5188b44ad": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1909f-e1b4-7660-b3f8-bd5923724b82",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":1101,\"deletions\":22}}",
+        "stats_total_additions": "1101",
+        "stats_total_deletions": "22",
+        "stats_turn_models": "{\"t_4b7855b1d261b4\":\"gpt-6-astra\",\"t_f4d75b50f569c8\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

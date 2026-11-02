@@ -1,0 +1,79 @@
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-percent-level-full.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 13-14
+widget_service/cloud/services/template_generation/resources/source/providers/calendar/templates/schedule-overview.cardtpl
+  s_d5d3810a466433::t_7a53206baf94f1 1743-1744,1746-1748,1751,1754-1759,1761
+  s_d5d3810a466433::t_cb40d9f59ffe3c 845,999
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/templates/current-time-overview.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 130,158,166
+widget_service/cloud/services/template_generation/tests/fixtures/calendar_existing_preview_hashes.json
+  s_d5d3810a466433::t_e9d0875b63d509 6,13,20
+widget_service/cloud/services/template_generation/resources/source/providers/weather/templates/weather-overview.cardtpl
+  s_d5d3810a466433::t_7a53206baf94f1 4189,4304
+  s_d5d3810a466433::t_cb40d9f59ffe3c 3541
+  s_d5d3810a466433::t_7b3bcaf005da86 4305-4309
+  s_d5d3810a466433::t_d9364050ad553e 318
+  s_d5d3810a466433::t_50566b98f80ca3 927,3527,3566,3591,4171,4186,4188,4191,4193-4212,4214,4216-4283,4285-4303,4310-4311
+  s_d5d3810a466433::t_3fe1e9d5a6d971 1396-1406,1408-1416,1418-1420,1423-1425,1427-1429,1433-1444
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/provider.json
+  s_d5d3810a466433::t_7a53206baf94f1 56,62
+widget_service/cloud/services/template_generation/docs/provider-template-capability-checklist.md
+  s_d5d3810a466433::t_2eedc9e0f1fe5e 267
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-percent-text-full.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 13-14
+widget_service/cloud/services/template_generation/resources/source/providers/earphone/templates/bluetooth-device-overview.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 13,33,40,1437,3427-3428,3432
+  s_d5d3810a466433::t_3fe1e9d5a6d971 1444
+widget_service/cloud/services/template_generation/docs/template-generation-design.md
+  s_d5d3810a466433::t_2e1b72fcfc3bca 596-597
+  s_d5d3810a466433::t_2eedc9e0f1fe5e 583-595
+widget_service/cloud/services/template_generation/docs/support-template-action-policy.md
+  s_d5d3810a466433::t_2eedc9e0f1fe5e 58
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-overview.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 131,1683,1721,1746,1808,2601,2612
+  s_d5d3810a466433::t_3fe1e9d5a6d971 138,149
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/workout-overview.cardtpl
+  s_d5d3810a466433::t_ecdd5956955429 247-252,254-261,263-270,273-276,279-282,286,288-299,302-307,311-316,319,322-332,334-339,341-342
+  s_d5d3810a466433::t_cb40d9f59ffe3c 240,277-278,301,310,321,333,643,651,659,671,684
+  s_d5d3810a466433::t_50566b98f80ca3 665
+  s_d5d3810a466433::t_27090a120f789e 317,320
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/activity-overview.cardtpl
+  s_d5d3810a466433::t_7a53206baf94f1 127-135,137-139,141-149,155,904-908
+  s_d5d3810a466433::t_cb40d9f59ffe3c 652,656
+widget_service/cloud/services/template_generation/tests/test_smartlayout_disabled_templates.py
+  s_d5d3810a466433::t_c8b3d9097045d0 113-115
+  s_d5d3810a466433::t_2553056d2c2055 1-23,35-36,41-57,60,62-65,67,69-77,79-103,124-127,129,131-140,142,144-168
+  s_d5d3810a466433::t_e1e1ea1b338f50 24-34
+  s_d5d3810a466433::t_edce97b1d650f9 37-40,58-59,61,66,68,78,104-112,116-123,128,130,141,143
+widget_service/cloud/services/template_generation/resources/source/providers/weather/provider.json
+  s_d5d3810a466433::t_7a53206baf94f1 94,893,934,940
+widget_service/cloud/services/template_generation/resources/source/providers/layout/templates/layout.cardtpl
+  s_d5d3810a466433::t_cb40d9f59ffe3c 290,318,516,567,578
+widget_service/cloud/services/template_generation/tests/test_provider_asset_semantics.py
+  s_d5d3810a466433::t_67f0c301475d2b 83,143
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/layer-docs/second-layer.md
+  s_d5d3810a466433::t_2eedc9e0f1fe5e 7
+widget_service/cloud/services/template_generation/resources/source/providers/weather/layer-docs/second-layer.md
+  s_d5d3810a466433::t_2eedc9e0f1fe5e 54-56,78,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.7",
+  "base_commit_sha": "2e303d51fa001e6848d2869b4a278b2f74a6614a",
+  "prompts": {},
+  "sessions": {
+    "s_d5d3810a466433": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19b57-b97e-7442-bec4-8506d5b798dd",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":562473,\"deletions\":852}}",
+        "stats_total_additions": "562473",
+        "stats_total_deletions": "852",
+        "stats_turn_models": "{\"t_17fcb7d365a0fc\":\"gpt-6-astra\",\"t_19b98b1298fc78\":\"gpt-6-astra\",\"t_2553056d2c2055\":\"gpt-6-astra\",\"t_27090a120f789e\":\"gpt-6-astra\",\"t_2b0e45f76d12b4\":\"gpt-6-astra\",\"t_2e1b72fcfc3bca\":\"gpt-6-astra\",\"t_2e5020f2515a29\":\"gpt-6-astra\",\"t_2eedc9e0f1fe5e\":\"gpt-6-astra\",\"t_352e84a99468d9\":\"gpt-6-astra\",\"t_3fe1e9d5a6d971\":\"gpt-6-astra\",\"t_50566b98f80ca3\":\"gpt-6-astra\",\"t_5d0bb27a10f2ea\":\"gpt-6-astra\",\"t_61173b618e2701\":\"gpt-6-astra\",\"t_67f0c301475d2b\":\"gpt-6-astra\",\"t_7820b5d88aa0b2\":\"gpt-6-astra\",\"t_7a53206baf94f1\":\"gpt-6-astra\",\"t_7b3bcaf005da86\":\"gpt-6-astra\",\"t_85834a94e596f0\":\"gpt-6-astra\",\"t_87c9ef27e589f8\":\"gpt-6-astra\",\"t_9c2bc700399d79\":\"gpt-6-astra\",\"t_b9bb6bd8a46c6b\":\"gpt-6-astra\",\"t_c8b3d9097045d0\":\"gpt-6-astra\",\"t_cb40d9f59ffe3c\":\"gpt-6-astra\",\"t_d9364050ad553e\":\"gpt-6-astra\",\"t_dab5a435e1a7fa\":\"gpt-6-astra\",\"t_e1e1ea1b338f50\":\"gpt-6-astra\",\"t_e3e12112ad3cce\":\"gpt-6-astra\",\"t_e547d0533b35d6\":\"gpt-6-astra\",\"t_e9d0875b63d509\":\"gpt-6-astra\",\"t_ecdd5956955429\":\"gpt-6-astra\",\"t_ed0a9def4f771e\":\"gpt-6-astra\",\"t_edce97b1d650f9\":\"gpt-6-astra\",\"t_f8bb9235d97243\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

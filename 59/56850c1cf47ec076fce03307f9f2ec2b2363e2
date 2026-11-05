@@ -1,0 +1,29 @@
+widget_service/cloud/services/template_generation/docs/template-generation-design.md
+  s_d5d3810a466433::t_b9dd3bfae1782e 596,605-607
+widget_service/cloud/services/template_generation/tests/test_smartlayout_disabled_templates.py
+  s_d5d3810a466433::t_b9dd3bfae1782e 107-108,127
+widget_service/cloud/services/template_generation/tests/test_calendar_requested_case_templates.py
+  s_d5d3810a466433::t_ab17826ada20b8 525
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.8",
+  "base_commit_sha": "5956850c1cf47ec076fce03307f9f2ec2b2363e2",
+  "prompts": {},
+  "sessions": {
+    "s_d5d3810a466433": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19b57-b97e-7442-bec4-8506d5b798dd",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":278880,\"deletions\":841}}",
+        "stats_total_additions": "8",
+        "stats_total_deletions": "85",
+        "stats_turn_models": "{\"t_ab17826ada20b8\":\"gpt-6-astra\",\"t_b9dd3bfae1782e\":\"gpt-6-astra\",\"t_c40c164ea834ef\":\"gpt-6-astra\",\"t_d2c3886a187381\":\"gpt-6-astra\",\"t_effdddae12b651\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

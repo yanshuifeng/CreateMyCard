@@ -1,0 +1,40 @@
+widget_service/cloud/services/template_generation/docs/template-search-planner-contract.md
+  s_d5d3810a466433::t_61ec32b30e13d7 122-127
+widget_service/cloud/services/template_generation/tests/test_wide_template_shrink.py
+  s_d5d3810a466433::t_61ec32b30e13d7 1-56,67-106,108-128
+  s_d5d3810a466433::t_136a667045f253 57-66,107
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-overview.cardtpl
+  s_d5d3810a466433::t_00b2e0d0613e2f 2678,2681-2682
+widget_service/cloud/services/template_generation/engine/cardplan/wide_template_planner.py
+  s_d5d3810a466433::t_77c89297369c29 8,242-244,269-274
+docs/云侧方案设计.md
+  s_d5d3810a466433::t_61ec32b30e13d7 748-751
+widget_service/cloud/services/template_generation/resources/source/providers/earphone/templates/bluetooth-device-overview.cardtpl
+  s_d5d3810a466433::t_2eff6e693f94cb 33-34
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/heart-rate-overview.cardtpl
+  s_d5d3810a466433::t_44ce90d9bcdf39 29,43-44,52
+  s_d5d3810a466433::t_7ca8b407482e17 28
+  s_d5d3810a466433::t_2348032ac5179f 54-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.8",
+  "base_commit_sha": "5205d610dee73f5a7725272599891e994e8d2947",
+  "prompts": {},
+  "sessions": {
+    "s_d5d3810a466433": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19b57-b97e-7442-bec4-8506d5b798dd",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":280712,\"deletions\":1975}}",
+        "stats_total_additions": "597",
+        "stats_total_deletions": "17",
+        "stats_turn_models": "{\"t_00b2e0d0613e2f\":\"gpt-6-astra\",\"t_0887d1808fb344\":\"gpt-6-astra\",\"t_092d0d2eedb7db\":\"gpt-6-astra\",\"t_136a667045f253\":\"gpt-6-astra\",\"t_18e3f466ef642e\":\"gpt-6-astra\",\"t_2348032ac5179f\":\"gpt-6-astra\",\"t_2eff6e693f94cb\":\"gpt-6-astra\",\"t_44ce90d9bcdf39\":\"gpt-6-astra\",\"t_4554316bc9ebca\":\"gpt-6-astra\",\"t_47a3a31b167259\":\"gpt-6-astra\",\"t_5525065fe51cff\":\"gpt-6-astra\",\"t_586f18a2025ead\":\"gpt-6-astra\",\"t_5f844a69b6902d\":\"gpt-6-astra\",\"t_61ec32b30e13d7\":\"gpt-6-astra\",\"t_6b6a8131538c04\":\"gpt-6-astra\",\"t_77c89297369c29\":\"gpt-6-astra\",\"t_7ca8b407482e17\":\"gpt-6-astra\",\"t_81969ac9648209\":\"gpt-6-astra\",\"t_943854904faccf\":\"gpt-6-astra\",\"t_ab17826ada20b8\":\"gpt-6-astra\",\"t_b32cb7ee2c5e08\":\"gpt-6-astra\",\"t_b927a6167a652b\":\"gpt-6-astra\",\"t_b9dd3bfae1782e\":\"gpt-6-astra\",\"t_be784140a060de\":\"gpt-6-astra\",\"t_c2ebbfe8e851f5\":\"gpt-6-astra\",\"t_c40c164ea834ef\":\"gpt-6-astra\",\"t_c45aea408f335c\":\"gpt-6-astra\",\"t_c54683fe74416e\":\"gpt-6-astra\",\"t_cc219c87190d39\":\"gpt-6-astra\",\"t_ce464fffc5f4bc\":\"gpt-6-astra\",\"t_d2330917ac9024\":\"gpt-6-astra\",\"t_d245362afabe4d\":\"gpt-6-astra\",\"t_d2c3886a187381\":\"gpt-6-astra\",\"t_dd36742a38e621\":\"gpt-6-astra\",\"t_e52e7fba1a6998\":\"gpt-6-astra\",\"t_e63b8020200882\":\"gpt-6-astra\",\"t_effdddae12b651\":\"gpt-6-astra\",\"t_f55adce5cae207\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}

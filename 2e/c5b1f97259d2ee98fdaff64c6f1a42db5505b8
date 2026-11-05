@@ -1,0 +1,50 @@
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-percent-text-full.cardtpl
+  s_d5d3810a466433::t_c54683fe74416e 7-53
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/workout-overview.cardtpl
+  s_d5d3810a466433::t_c54683fe74416e 310
+widget_service/cloud/services/template_generation/resources/source/providers/earphone/templates/bluetooth-device-overview.cardtpl
+  s_d5d3810a466433::t_c54683fe74416e 39
+  s_d5d3810a466433::t_18e3f466ef642e 66-85,89-108,139-158,162-181,1506,1513
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/heart-rate-overview.cardtpl
+  s_d5d3810a466433::t_18e3f466ef642e 8-16,18-30,32-44,46-57,59-67,70-92,94
+widget_service/cloud/services/template_generation/resources/source/providers/battery/templates/battery-overview.cardtpl
+  s_d5d3810a466433::t_18e3f466ef642e 2688
+  s_d5d3810a466433::t_c54683fe74416e 1730-1731,2678,2689-2693
+  s_d5d3810a466433::t_d52bae22ea28dd 2694-2696
+  s_d5d3810a466433::t_7e2fe72063edba 2697-2698
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/provider.json
+  s_d5d3810a466433::t_f55adce5cae207 56
+widget_service/cloud/services/template_generation/resources/source/providers/health-sport/templates/activity-overview.cardtpl
+  s_d5d3810a466433::t_18e3f466ef642e 55,57,60-61,67-68,70-76,78-87,89,91,93-133
+  s_d5d3810a466433::t_c54683fe74416e 58
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/layer-docs/second-layer.md
+  s_d5d3810a466433::t_f55adce5cae207 7
+widget_service/cloud/services/template_generation/resources/source/providers/current-time/templates/current-time-overview.cardtpl
+  s_d5d3810a466433::t_18e3f466ef642e 171,179-180,183
+widget_service/cloud/services/template_generation/resources/source/providers/weather/templates/weather-overview.cardtpl
+  s_d5d3810a466433::t_18e3f466ef642e 1418-1425,1427,1429-1458,1460-1569,4304,4419-4427,4429,4431-4432,4436
+widget_service/cloud/services/template_generation/resources/source/providers/weather/layer-docs/second-layer.md
+  s_d5d3810a466433::t_f55adce5cae207 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.8",
+  "base_commit_sha": "2ec5b1f97259d2ee98fdaff64c6f1a42db5505b8",
+  "prompts": {},
+  "sessions": {
+    "s_d5d3810a466433": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a19b57-b97e-7442-bec4-8506d5b798dd",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "yan_shuifeng <yanshuifeng@huawei.com>",
+      "custom_attributes": {
+        "stats_model_totals": "{\"gpt-6-astra\":{\"additions\":280115,\"deletions\":1958}}",
+        "stats_total_additions": "627",
+        "stats_total_deletions": "295",
+        "stats_turn_models": "{\"t_0887d1808fb344\":\"gpt-6-astra\",\"t_18e3f466ef642e\":\"gpt-6-astra\",\"t_5525065fe51cff\":\"gpt-6-astra\",\"t_586f18a2025ead\":\"gpt-6-astra\",\"t_6b6a8131538c04\":\"gpt-6-astra\",\"t_943854904faccf\":\"gpt-6-astra\",\"t_ab17826ada20b8\":\"gpt-6-astra\",\"t_b9dd3bfae1782e\":\"gpt-6-astra\",\"t_be784140a060de\":\"gpt-6-astra\",\"t_c2ebbfe8e851f5\":\"gpt-6-astra\",\"t_c40c164ea834ef\":\"gpt-6-astra\",\"t_c45aea408f335c\":\"gpt-6-astra\",\"t_c54683fe74416e\":\"gpt-6-astra\",\"t_cc219c87190d39\":\"gpt-6-astra\",\"t_ce464fffc5f4bc\":\"gpt-6-astra\",\"t_d2c3886a187381\":\"gpt-6-astra\",\"t_dd36742a38e621\":\"gpt-6-astra\",\"t_effdddae12b651\":\"gpt-6-astra\",\"t_f55adce5cae207\":\"gpt-6-astra\"}"
+      }
+    }
+  }
+}
